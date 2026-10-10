@@ -603,7 +603,7 @@ body{background:var(--bg)}
     <!-- STUDENTS TAB -->
     <div id="tab-students" style="display:none">
       <button id="add-student-toggle-btn" class="btn-primary" onclick="toggleAddStudentForm()" style="margin-bottom:14px">➕ إضافة مخدوم</button>
-      <button class="btn-primary" onclick="openImportModal()" style="margin-bottom:14px;background:var(--surface2);color:var(--text);border:1px solid var(--border)">📥 رفع شيت مخدومين (Excel)</button>
+      <button class="btn-primary" id="import-open-btn" onclick="openImportModal()" style="display:none;margin-bottom:14px;background:var(--surface2);color:var(--text);border:1px solid var(--border)">📥 رفع شيت مخدومين (Excel)</button>
       <div class="add-form" id="add-student-fields" style="display:none">
         <p class="section-title" style="margin-bottom:14px">إضافة مخدوم جديد</p>
         <label class="field-label">الاسم *</label>
@@ -633,11 +633,6 @@ body{background:var(--bg)}
       <div class="search-box" style="margin-bottom:12px">
         <input type="text" id="students-search-input" placeholder="🔍 ابحث عن مخدوم بالاسم…" oninput="renderStudentsList()" autocomplete="off">
       </div>
-      <div class="filter-row" id="siblings-chips" style="margin-bottom:12px">
-        <button class="filter-chip active" onclick="setSiblingsFilter('all',this)">الكل</button>
-        <button class="filter-chip" onclick="setSiblingsFilter('siblings',this)">👨‍👩‍👧‍👦 الإخوات بس</button>
-        <button class="filter-chip" onclick="setSiblingsFilter('nonSiblings',this)">بدون إخوات</button>
-      </div>
       <div class="filter-row" id="class-chips" style="margin-bottom:12px"></div>
       <div id="students-list"><div class="loading"><div class="spinner"></div>جاري التحميل…</div></div>
     </div>
@@ -661,22 +656,6 @@ body{background:var(--bg)}
           <option value="11">نوفمبر</option>
           <option value="12">ديسمبر</option>
         </select>
-      </div>
-
-      <div class="filter-bar" style="margin-bottom:10px">
-        <details class="filter-acc">
-          <summary class="filter-acc-header">
-            <span class="section-title">👨‍👩‍👧‍👦 الإخوات</span>
-            <span class="filter-acc-right"><span class="filter-acc-value" id="fsiblings-value">الكل</span><span class="filter-acc-chevron">⌄</span></span>
-          </summary>
-          <div class="filter-acc-body">
-            <div class="filter-row" id="filter-siblings-chips">
-              <button class="filter-chip active" onclick="setFilterSiblings('all',this)">الكل</button>
-              <button class="filter-chip" onclick="setFilterSiblings('siblings',this)">👨‍👩‍👧‍👦 الإخوات بس</button>
-              <button class="filter-chip" onclick="setFilterSiblings('nonSiblings',this)">بدون إخوات</button>
-            </div>
-          </div>
-        </details>
       </div>
 
       <div class="filter-bar" style="margin-bottom:10px">
@@ -802,12 +781,6 @@ body{background:var(--bg)}
             </div>
           </div>
         </details>
-      </div>
-
-      <div class="filter-row" id="wa-siblings-chips" style="margin-bottom:12px">
-        <button class="filter-chip active" onclick="setWaSiblingsFilter('all',this)">👥 الكل</button>
-        <button class="filter-chip" onclick="setWaSiblingsFilter('siblings',this)">👨‍👩‍👧‍👦 الإخوات بس</button>
-        <button class="filter-chip" onclick="setWaSiblingsFilter('nonSiblings',this)">بدون إخوات</button>
       </div>
 
       <div class="filter-row" id="wa-group-chips" style="margin-bottom:12px">
@@ -1735,7 +1708,6 @@ let ownServantUnsub = null; // بث لحظي على مستند الخادمة ب
 let servantsUnsub = null;   // بث لحظي على قائمة الخادمات في تبويب المتابعة — عشان أي تغيير (قبول/رفض/ترقية/حذف) يظهر لكل الأدمنز فورًا
 let explicitAuthAction = false; // بيتحط true بس لما الخادمة يدوس زرار "دخول" بنفسه، عشان نفرّق بين جلسة محمولة من موقع تاني على نفس الدومين ودخول مقصود فعلاً
 let bdayMonth = 0, absenceFilter = 'all', attendanceFilter = 'all', noteFilter = 'all';
-let siblingsFilter = 'all'; // 'all' | 'siblings' | 'nonSiblings' (تبويب المخدومين)
 let classFilter = 'all'; // 'all' | <classId> | 'none' (فلتر الفصل — تبويب المخدومين)
 let currentClassTab = localStorage.getItem('attendanceClassTab') || ''; // <classId> — التاب المختار فوق في شاشة الحضور، بيتحدد أول فصل موجود لما الفصول توصل
 
@@ -2105,7 +2077,6 @@ function renderSettingsPeopleList() {
     </div>`;
   }).join('');
 }
-let filterSiblings = 'all'; // 'all' | 'siblings' | 'nonSiblings' (تبويب الافتقاد)
 // ملحوظات الافتقاد دلوقتي نص حر بيكتبه أي خادمة (s.visitNote).
 // الخريطة دي بس لتحويل الملحوظات الثابتة القديمة (s.visitNotes) لنص عشان متضيعش.
 const LEGACY_NOTE_LABELS = {
@@ -2861,6 +2832,7 @@ function importPhones(v) {
   return { main: parts[0] || '', extra: parts.slice(1), bad };
 }
 window.openImportModal = async () => {
+  if (currentRole !== 'admin') { showToast('رفع الشيت للأدمن بس', 'error'); return; }
   await ensureAllClassesForAdmin();
   const allowed = getAllowedAssignedClasses();
   const sel = document.getElementById('import-class');
@@ -2936,7 +2908,7 @@ window.handleImportFile = async (e) => {
   }
 };
 window.confirmImport = async () => {
-  if (!importRows.length) return;
+  if (currentRole !== 'admin' || !importRows.length) return;
   const btn = document.getElementById('import-confirm-btn');
   const cls = document.getElementById('import-class').value || '';
   const allowed = getAllowedAssignedClasses();
@@ -3007,31 +2979,6 @@ window.cleanAllNames = async () => {
 };
 
 
-// مفتاح العيلة = الاسم كامل عدا أول كلمة (يعني اسم الأب + الجد + ...) — بيستخدم لتحديد مين إخوة مين
-function familyKey(name) {
-  const words = normalizeArabic(name).split(' ').filter(Boolean);
-  if (words.length < 2) return null; // اسم كلمة واحدة مش كفاية نحكم عليه
-  return words.slice(1).join(' ');
-}
-
-// بيرجع خريطة: مفتاح العيلة -> عدد المخدومين اللي شايلينه (من بين كل المخدومين مش بس المفلترين)
-function computeSiblingCounts(list) {
-  const counts = {};
-  list.forEach(s => {
-    const key = familyKey(s.name);
-    if (!key) return;
-    counts[key] = (counts[key] || 0) + 1;
-  });
-  return counts;
-}
-
-window.setSiblingsFilter = (val, btn) => {
-  siblingsFilter = val;
-  document.querySelectorAll('#siblings-chips .filter-chip').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  renderStudentsList();
-};
-
 window.setClassFilter = (val) => {
   classFilter = val;
   renderClassChips();
@@ -3046,6 +2993,7 @@ function updateStuCount() {
 }
 function renderStudentsList() {
   const cont = document.getElementById('students-list');
+  const impBtn = document.getElementById('import-open-btn'); if (impBtn) impBtn.style.display = currentRole === 'admin' ? '' : 'none';
   stuListCount = null;
   updateStuCount();
   if (!allStudents.length) {
@@ -3056,25 +3004,11 @@ function renderStudentsList() {
   const q = normalizeArabic(qRaw);
   let list = q ? searchStudents(allStudents, q) : allStudents;
 
-  // فلتر الإخوات: بيتحسب على أساس كل المخدومين (مش بس اللي طلعوا من البحث) عشان يبقى دقيق
-  const siblingCounts = computeSiblingCounts(allStudents);
-  if (siblingsFilter === 'siblings') {
-    list = list.filter(s => { const k = familyKey(s.name); return k && siblingCounts[k] > 1; });
-  } else if (siblingsFilter === 'nonSiblings') {
-    list = list.filter(s => { const k = familyKey(s.name); return !k || siblingCounts[k] <= 1; });
-  }
-
   const cf = effectiveClassFilter();
   if (cf === 'none') list = list.filter(s => !s.classSection);
   else if (cf && cf !== 'all') list = list.filter(s => s.classSection === cf);
 
-  // ترتيب اللستة عشان كل الإخوات (نفس الاسم بالظبط من اسم الأب لحد آخر اسم) يظهروا ورا بعض مجموعين — دايمًا، حتى وقت البحث
-  list = [...list].sort((a, b) => {
-    const ka = familyKey(a.name) || `__${a.id}`;
-    const kb = familyKey(b.name) || `__${b.id}`;
-    const c = ka.localeCompare(kb, 'ar');
-    return c !== 0 ? c : a.name.localeCompare(b.name, 'ar');
-  });
+  list = [...list].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
 
   stuListCount = list.length;
   updateStuCount();
@@ -3084,16 +3018,12 @@ function renderStudentsList() {
   }
   cont.innerHTML = list.map(s => {
     const dob = s.dob ? new Date(s.dob).toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'}) : '';
-    const k = familyKey(s.name);
-    const isSibling = k && siblingCounts[k] > 1;
-    const siblingBadge = isSibling ? `<div class="s-sub">👨‍👩‍👧‍👦 ${siblingCounts[k]} إخوات مسجلين</div>` : '';
     const classBadge = classBadgeHTML(s.classSection);
     return `<div class="student-item">
       <div class="s-info">
         <div class="s-name">${s.name}</div>
         ${dob ? `<div class="s-sub">🎂 ${dob}</div>` : ''}
         <div class="s-sub" style="margin-top:3px">${classBadge}</div>
-        ${siblingBadge}
       </div>
       <button class="action-btn" onclick="openProfile('${s.id}')">👤</button>
       <button class="action-btn" onclick="openEditModal('${s.id}')">✏️</button>
@@ -3104,7 +3034,6 @@ function renderStudentsList() {
 window.renderStudentsList = renderStudentsList; // ضروري عشان oninput في الـ HTML يقدر يلاقيها (لأننا جوه type=module)
 
 // ===== WHATSAPP BULK MESSAGE TAB =====
-let waSiblingsFilter = 'all'; // 'all' | 'siblings' | 'nonSiblings'
 let waGenderFilter   = 'all'; // 'all' | 'male' | 'female'
 let waGroupFilter    = 'all'; // 'all' | 'notAdded' | 'added' — حالة الانضمام لجروب الواتساب
 let waBdayMonth      = 0;
@@ -3266,12 +3195,6 @@ function waRecipientsSource() {
     const lastDates = dates.slice(-n);
     list = list.filter(s => lastDates.length === n && lastDates.every(d => !!allAttendance[d]?.[s.id]));
   }
-  const siblingCounts = computeSiblingCounts(classScope(ownClassStudents()));
-  if (waSiblingsFilter === 'siblings') {
-    list = list.filter(s => { const k = familyKey(s.name); return k && siblingCounts[k] > 1; });
-  } else if (waSiblingsFilter === 'nonSiblings') {
-    list = list.filter(s => { const k = familyKey(s.name); return !k || siblingCounts[k] <= 1; });
-  }
   if (waGroupFilter === 'notAdded') {
     list = list.filter(s => !s.waGroupAdded);
   } else if (waGroupFilter === 'added') {
@@ -3303,14 +3226,6 @@ window.setWaAttendanceFilter = (v, btn) => {
   btn.classList.add('active');
   document.getElementById('wa-attendance-value').textContent = btn.textContent.trim();
   btn.closest('details')?.removeAttribute('open');
-  waChecked = new Set(waRecipientsSource().filter(waHasPhone).map(s => s.id));
-  renderWaRecipientsList();
-};
-
-window.setWaSiblingsFilter = (val, btn) => {
-  waSiblingsFilter = val;
-  document.querySelectorAll('#wa-siblings-chips .filter-chip').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
   waChecked = new Set(waRecipientsSource().filter(waHasPhone).map(s => s.id));
   renderWaRecipientsList();
 };
@@ -3880,15 +3795,6 @@ window.setBdayMonth = (m) => {
   renderFilterList();
 };
 
-window.setFilterSiblings = (v, btn) => {
-  filterSiblings = v;
-  document.querySelectorAll('#filter-siblings-chips .filter-chip').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('fsiblings-value').textContent = btn.textContent.trim();
-  btn.closest('details')?.removeAttribute('open');
-  renderFilterList();
-};
-
 window.setAbsenceFilter = (v, btn) => {
   absenceFilter = v;
   document.querySelectorAll('#absence-chips .filter-chip').forEach(b => b.classList.remove('active'));
@@ -3939,21 +3845,7 @@ function renderFilterList() {
     const lastDates = dates.slice(-n);
     list = list.filter(s => lastDates.length === n && lastDates.every(d => !!allAttendance[d]?.[s.id]));
   }
-  if (filterSiblings !== 'all') {
-    const siblingCounts = computeSiblingCounts(allStudents);
-    if (filterSiblings === 'siblings') {
-      list = list.filter(s => { const k = familyKey(s.name); return k && siblingCounts[k] > 1; });
-    } else {
-      list = list.filter(s => { const k = familyKey(s.name); return !k || siblingCounts[k] <= 1; });
-    }
-  }
-  // تجميع الإخوات فوق بعض في نتايج الافتقاد بردو
-  list = [...list].sort((a, b) => {
-    const ka = familyKey(a.name) || `__${a.id}`;
-    const kb = familyKey(b.name) || `__${b.id}`;
-    const c = ka.localeCompare(kb, 'ar');
-    return c !== 0 ? c : a.name.localeCompare(b.name, 'ar');
-  });
+  list = [...list].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
   document.getElementById('filter-count').textContent = `${list.length} مخدوم`;
   if (!list.length) {
     cont.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div>لا يوجد نتائج</div>`;
