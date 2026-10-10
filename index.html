@@ -92,8 +92,6 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-h
 .check-box:active{transform:scale(.92);}
 .check-box.att-box{background:rgba(46,204,113,0.08);border-color:rgba(46,204,113,0.25);}
 .check-box.att-box.checked{background:rgba(46,204,113,0.15);border-color:var(--success);color:var(--success);}
-.check-box.verse-box{background:rgba(124,92,191,0.08);border-color:rgba(124,92,191,0.25);}
-.check-box.verse-box.checked{background:rgba(124,92,191,0.15);border-color:#a07de0;color:#a07de0;}
 .gift-slot{flex:1;display:flex;align-items:center;justify-content:center;min-width:38px;}
 .gift-icon{width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:30px;line-height:1;cursor:pointer;transition:transform .15s;user-select:none;}
 .gift-icon:active{transform:scale(.85);}
@@ -310,9 +308,6 @@ details.filter-acc[open] .filter-acc-chevron{transform:rotate(180deg);}
 #install-banner{display:none;position:fixed;bottom:0;left:0;right:0;z-index:300;padding:10px 14px calc(24px + env(safe-area-inset-bottom));pointer-events:none;}
 .install-inner{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 32px rgba(0,0,0,0.5);pointer-events:all;}
 
-/* VERSE */
-.verse-badge{background:rgba(124,92,191,0.12);border:1px solid rgba(124,92,191,0.3);color:#a07de0;border-radius:7px;padding:2px 7px;font-size:10px;font-weight:700;flex-shrink:0;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.student-item.verse-only{border-color:rgba(124,92,191,0.3);}
 
 /* AUTH TABS / REGISTER */
 .auth-card .tabs{margin-bottom:18px;}
@@ -531,9 +526,8 @@ details.filter-acc[open] .filter-acc-chevron{transform:rotate(180deg);}
       <button id="voice-toggle-btn" class="btn-voice" onclick="startVoice()">🎤 تسجيل بالصوت</button>
       <div class="voice-zone" id="voice-zone" style="display:none">
         <div class="mic-pulse-wrap"><span class="mic-pulse-icon">🎤</span></div>
-        <div id="voice-mode-badge" style="display:inline-block;font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;margin-bottom:8px;cursor:pointer;background:rgba(46,204,113,0.12);border:1px solid rgba(46,204,113,0.3);color:var(--success)" onclick="toggleVoiceMode()">✓ وضع: تسجيل حضور</div>
         <div class="voice-heard" id="voice-heard">بيسمعك دلوقتي…</div>
-        <div class="voice-hint" id="voice-hint">قول اسم المخدوم (اسمين بيكفوا) — أو قول "تسجيل آية" عشان تبدأ تسجّل سماع، و"تسجيل حضور" عشان ترجع تاني</div>
+        <div class="voice-hint" id="voice-hint">قول اسم المخدوم (اسمين بيكفوا)</div>
         <div id="voice-candidates"></div>
       </div>
       <button class="stop-btn" id="voice-stop-btn" onclick="stopVoice()" style="display:none">⏹ إيقاف التسجيل بالصوت</button>
@@ -549,7 +543,6 @@ details.filter-acc[open] .filter-acc-chevron{transform:rotate(180deg);}
       <div class="filter-row" style="margin-bottom:8px">
         <button class="filter-chip active" id="today-filter-all" onclick="setTodayListFilter('all',this)">الكل</button>
         <button class="filter-chip" id="today-filter-attendance" onclick="setTodayListFilter('attendance',this)">✅ حضور بس</button>
-        <button class="filter-chip" id="today-filter-verse" onclick="setTodayListFilter('verse',this)">📖 سماع بس</button>
         <button class="filter-chip" id="today-filter-birthday" onclick="setTodayListFilter('birthday',this)">🎂 أعياد ميلاد الشهر ده</button>
       </div>
       <div class="list-header" style="margin-top:-4px">
@@ -671,24 +664,6 @@ details.filter-acc[open] .filter-acc-chevron{transform:rotate(180deg);}
               <button class="filter-chip" onclick="setAttendanceFilter(3,this)">حضر آخر 3 مرات</button>
               <button class="filter-chip" onclick="setAttendanceFilter(4,this)">حضر آخر 4 مرات</button>
               <button class="filter-chip" onclick="setAttendanceFilter(5,this)">حضر آخر 5 مرات</button>
-            </div>
-          </div>
-        </details>
-      </div>
-
-      <div class="filter-bar" style="margin-bottom:10px">
-        <details class="filter-acc">
-          <summary class="filter-acc-header">
-            <span class="section-title">📖 التسميع</span>
-            <span class="filter-acc-right"><span class="filter-acc-value" id="verse-value">الكل</span><span class="filter-acc-chevron">⌄</span></span>
-          </summary>
-          <div class="filter-acc-body">
-            <div class="filter-row" id="verse-chips">
-              <button class="filter-chip active" onclick="setVerseFilter('all',this)">الكل</button>
-              <button class="filter-chip" onclick="setVerseFilter(1,this)">سمع آخر مرة</button>
-              <button class="filter-chip" onclick="setVerseFilter(2,this)">سمع آخر مرتين</button>
-              <button class="filter-chip" onclick="setVerseFilter(3,this)">سمع آخر 3 مرات</button>
-              <button class="filter-chip" onclick="setVerseFilter(4,this)">سمع آخر 4 مرات</button>
             </div>
           </div>
         </details>
@@ -1178,7 +1153,7 @@ details.filter-acc[open] .filter-acc-chevron{transform:rotate(180deg);}
         <div id="export-classes-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
       <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">
-        <div class="section-title" style="margin-bottom:8px">الفترة (للحضور والتسميع وحضور الخدام)</div>
+        <div class="section-title" style="margin-bottom:8px">الفترة (للحضور وحضور الخدام)</div>
         <select id="export-range" class="field-input">
           <option value="30">آخر شهر</option>
           <option value="90" selected>آخر 3 شهور</option>
@@ -1191,15 +1166,11 @@ details.filter-acc[open] .filter-acc-chevron{transform:rotate(180deg);}
         <input type="checkbox" id="export-opt-att" checked style="width:20px;height:20px;accent-color:var(--accent);flex-shrink:0">
         <span style="font-size:14px;font-weight:600">✓ سجل الحضور</span>
       </label>
-      <label style="display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer">
-        <input type="checkbox" id="export-opt-verse" checked style="width:20px;height:20px;accent-color:var(--accent);flex-shrink:0">
-        <span style="font-size:14px;font-weight:600">📖 سجل التسميع (الآية)</span>
-      </label>
       <label style="display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer;border-top:1px solid var(--border);margin-top:4px">
         <input type="checkbox" id="export-opt-students" style="width:20px;height:20px;accent-color:var(--accent);flex-shrink:0">
         <span style="font-size:14px;font-weight:600">👤 بيانات المخدومين</span>
       </label>
-      <p style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.7">لو اخترت حضور و/أو تسميع، هيتحطوا مع بعض في نفس الشيت. لو اخترت بيانات المخدومين مع أي حاجة تانية، هتتصدّر في شيت منفصل جوه نفس الملف.</p>
+      <p style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.7">لو اخترت بيانات المخدومين مع الحضور، هتتصدّر في شيت منفصل جوه نفس الملف.</p>
       <div id="export-servants-wrap" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
         <div class="section-title" style="margin-bottom:8px">👥 الخدام</div>
         <div id="export-serv-classes-wrap" style="display:none;margin-bottom:6px">
@@ -1217,7 +1188,7 @@ details.filter-acc[open] .filter-acc-chevron{transform:rotate(180deg);}
           <input type="checkbox" id="export-opt-serv-att" style="width:20px;height:20px;accent-color:var(--accent);flex-shrink:0">
           <span style="font-size:14px;font-weight:600">🗓️ حضور الخدام (قداس / مدارس أحد / اجتماع / تحضير)</span>
         </label>
-        <p style="font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.7">لو عايز الخدام بس، شيل علامة الحضور والتسميع وبيانات المخدومين اللي فوق. حضور الخدام بيتصدّر شيت لكل نشاط.</p>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.7">لو عايز الخدام بس، شيل علامة الحضور وبيانات المخدومين اللي فوق. حضور الخدام بيتصدّر شيت لكل نشاط.</p>
       </div>
       <button class="btn-primary" onclick="runExportExcel()" style="margin-top:14px">📥 تصدير</button>
     </div>
@@ -1661,8 +1632,8 @@ function scoreStudentsVoice(list, normalizedQuery) {
 }
 
 let allStudents = [], todayAttendance = {}, allAttendance = {};
-let todayAttendanceTime = {}, todayVerseTime = {}; // studentId -> millis وقت التسجيل، لترتيب "الأول للأخير"
-let todayListFilter = 'all'; // 'all' | 'attendance' | 'verse' | 'birthday'
+let todayAttendanceTime = {}; // studentId -> millis وقت التسجيل، لترتيب "الأول للأخير"
+let todayListFilter = 'all'; // 'all' | 'attendance' | 'birthday'
 let todayListSortOrder = 'first'; // 'first' (الأول اللي سجل فوق) | 'last' (الأخير اللي سجل فوق)
 function tsToMillis(ts) {
   if (!ts) return Date.now();
@@ -1671,8 +1642,6 @@ function tsToMillis(ts) {
   return Date.now();
 }
 let todayAttendanceUnsub = null; // بث لحظي لحضور النهارده — يخلي كل خادم يشوف تحديثات الخادم التاني فوراً
-let todayVersesUnsub = null;     // بث لحظي لسماع الآية النهارده — نفس الفكرة بالظبط لكن للسماع
-let todayVerses = {}, allVerses = {};  // { studentId: { id, verse } } keyed by date→studentId
 let currentUid = null, currentName = '', currentRole = 'servant', currentEmail = '';
 let currentSupervisorClass = ''; // الفصول اللي الخادم مسؤول عنها (ممكن تبقى جزء من فصوله)
 let currentAssignedClass = ''; // 'a' | 'b' | 'kg' | 'a,b' | '' — الفصول اللي الأدمن حدده للخادم من تبويب "متابعة" (فاضي = مقيدش، بيشوف كل الفصول)
@@ -1715,7 +1684,7 @@ function onAdminScopeChanged() {
   const sk = readScopeClasses().join(',');
   if (sk === lastReadScopeKey) return;
   lastReadScopeKey = sk;
-  if (todayAttendanceUnsub || todayVersesUnsub) restartTodayListeners();
+  if (todayAttendanceUnsub) restartTodayListeners();
   if (studentsLoaded) loadStudents().then(() => { updateStats(); renderTodayList(); updateStuCount(); renderStudentsList();
     if (document.getElementById('tab-filters')?.style.display === 'block') renderFilterList();
     if (document.getElementById('tab-messages')?.style.display === 'block') renderWaTab(); });
@@ -1755,7 +1724,7 @@ let editGenderManuallySet = false; // نفس الفكرة بس في مودال �
 let ownServantUnsub = null; // بث لحظي على مستند الخادم بتاعي نفسه — عشان لو الأدمن الأساسي غيّر صلاحيتي أو حذفني، أتأثر فورًا من غير ما أعمل reload
 let servantsUnsub = null;   // بث لحظي على قائمة الخدام في تبويب المتابعة — عشان أي تغيير (قبول/رفض/ترقية/حذف) يظهر لكل الأدمنز فورًا
 let explicitAuthAction = false; // بيتحط true بس لما الخادم يدوس زرار "دخول" بنفسه، عشان نفرّق بين جلسة محمولة من موقع تاني على نفس الدومين ودخول مقصود فعلاً
-let bdayMonth = 0, absenceFilter = 'all', attendanceFilter = 'all', verseFilter = 'all', noteFilter = 'all';
+let bdayMonth = 0, absenceFilter = 'all', attendanceFilter = 'all', noteFilter = 'all';
 let siblingsFilter = 'all'; // 'all' | 'siblings' | 'nonSiblings' (تبويب المخدومين)
 let classFilter = 'all'; // 'all' | <classId> | 'none' (فلتر الفصل — تبويب المخدومين)
 let currentClassTab = localStorage.getItem('attendanceClassTab') || ''; // <classId> — التاب المختار فوق في شاشة الحضور، بيتحدد أول فصل موجود لما الفصول توصل
@@ -1899,7 +1868,7 @@ function startClassesListener() {
     const sk = readScopeClasses().join(',');
     if (sk !== lastReadScopeKey) {
       lastReadScopeKey = sk;
-      if (todayAttendanceUnsub || todayVersesUnsub) restartTodayListeners();
+      if (todayAttendanceUnsub) restartTodayListeners();
       if (studentsLoaded) loadStudents().then(() => { updateStats(); renderTodayList(); });
     }
     onClassesUpdated();
@@ -2150,17 +2119,6 @@ const todayKey = () => {
   d.setDate(d.getDate() - ((d.getDay() + 1) % 7) + 5); // رجوع لأقرب سبت، وبعدين 5 أيام لقدام = خميس الأسبوع ده
   return toLocalDateKey(d);
 };
-// الآيات: أسبوعها من السبت الصبح لحد الجمعة بالليل، والقايمة بترجع فاضية كل يوم سبت.
-// وبتتسجل على حضور الأسبوع اللي قبله = تاريخ الخميس اللي قبل السبت بتاع الأسبوع ده (سبت 03/10 → جمعة 09/10 = خميس 01/10).
-// التسجيل مفتوح طول الأسبوع.
-const verseKey = () => {
-  const d = new Date();
-  d.setDate(d.getDate() - ((d.getDay() + 1) % 7) - 2); // رجوع لأقرب سبت، وبعدين يومين لورا = خميس
-  return toLocalDateKey(d);
-};
-const verseOpen = () => true;
-const VERSE_CLOSED_MSG = 'تسجيل الآية مقفول';
-
 // ===== الدخول بالبصمة (WebAuthn كبوابة محلية على الجهاز) =====
 // ملحوظة: مفاتيحنا مسمّاة 'bc_*' عشان الدومين teto550.github.io مشترك بين كل تطبيقاتك
 const BIO_LS = 'bc_bio_v1', BIO_DECLINED = 'bc_bio_declined';
@@ -2482,7 +2440,6 @@ onAuthStateChanged(auth, async user => {
   if (!user) {
     stopPendingSelfWatch(); stopPendingRequestsListener();
     if (todayAttendanceUnsub) { todayAttendanceUnsub(); todayAttendanceUnsub = null; }
-    if (todayVersesUnsub) { todayVersesUnsub(); todayVersesUnsub = null; }
     if (ownServantUnsub) { ownServantUnsub(); ownServantUnsub = null; }
     if (servantsUnsub) { servantsUnsub(); servantsUnsub = null; }
     stopClassesListener();
@@ -2650,7 +2607,7 @@ function listenOwnServantDoc(uid) {
     }
     if (roleOrClassChanged) {
       applyClassRestrictionUI();
-      if (todayAttendanceUnsub || todayVersesUnsub) restartTodayListeners();
+      if (todayAttendanceUnsub) restartTodayListeners();
       loadStudents().then(() => {
         updateStats(); renderTodayList();
         if (document.getElementById('tab-filters')?.style.display === 'block') renderFilterList();
@@ -2665,7 +2622,6 @@ async function forceLogout() {
   if (ownServantUnsub) { ownServantUnsub(); ownServantUnsub = null; }
   if (servantsUnsub) { servantsUnsub(); servantsUnsub = null; }
   if (todayAttendanceUnsub) { todayAttendanceUnsub(); todayAttendanceUnsub = null; }
-  if (todayVersesUnsub) { todayVersesUnsub(); todayVersesUnsub = null; }
   stopHeartbeat();
   await signOut(auth);
 }
@@ -3516,12 +3472,9 @@ async function _ensureRecentAttendance(weeks) {
 }
 const studentHist = {};
 async function loadStudentHist(id) {
-  const [a, v] = await Promise.all([
-    countedGetDocs(query(collection(db,'attendance'), where('studentId','==',id)), 'attendance (بروفايل مخدوم)'),
-    countedGetDocs(query(collection(db,'verses'), where('studentId','==',id)), 'verses (بروفايل مخدوم)')]);
-  const H = { att:{}, ver:{}, ts: Date.now() };
+  const a = await countedGetDocs(query(collection(db,'attendance'), where('studentId','==',id)), 'attendance (بروفايل مخدوم)');
+  const H = { att:{}, ts: Date.now() };
   a.docs.forEach(x => { H.att[x.data().date] = x.id; });
-  v.docs.forEach(x => { const y = x.data(); H.ver[y.date] = { id:x.id, verse:y.verse||'' }; });
   studentHist[id] = H;
 }
 async function loadAllAttendance() {
@@ -3540,7 +3493,7 @@ async function loadAllAttendance() {
 // حضور النهارده بس، بث لحظي: لما خادم يسجل أو يشيل حضور، كل الخدام التانيين
 // الفاتحين الموقع في نفس اللحظة يشوفوا التحديث فوراً من غير reload
 const clsOf = id => (allStudents.find(x => x.id === id)?.classSection) || '';
-// الخادم المقيّد بفصول بيسمع حضور وآيات فصوله بس (مش كل الفصول) عشان الـ reads متزيدش مع زيادة الفصول
+// الخادم المقيّد بفصول بيسمع حضور فصوله بس (مش كل الفصول) عشان الـ reads متزيدش مع زيادة الفصول
 function todayQuery(col, today) {
   const al = readScopeClasses();
   const f = [where('date','==', today)];
@@ -3551,45 +3504,13 @@ function todayQuery(col, today) {
 const outsideAllowed = id => { const al = readScopeClasses(); return al.length > 0 && !al.includes(clsOf(id)); };
 function restartTodayListeners() {
   if (todayAttendanceUnsub) { todayAttendanceUnsub(); todayAttendanceUnsub = null; }
-  if (todayVersesUnsub) { todayVersesUnsub(); todayVersesUnsub = null; }
   startTodayListeners();
-}
-// نقل صامت لمرة واحدة: آيات الأربع 30/09 كانت متحفظة على تاريخ الأربع، ودلوقتي بتتحسب على حضور الأسبوع اللي فات (خميس 24/09)
-async function migrateLegacyVerses() {
-  if (!localStorage.getItem('vmig_0930')) try {
-    const snap = await countedGetDocs(query(collection(db,'verses'), where('date','==','2026-09-30')), 'verses (نقل تاريخ قديم - مرة واحدة)');
-    const docs = snap.docs;
-    for (let i = 0; i < docs.length; i += 400) {
-      const b = writeBatch(db);
-      docs.slice(i, i + 400).forEach(d => b.update(d.ref, { date: '2026-09-24', classSection: d.data().classSection ?? clsOf(d.data().studentId) }));
-      await b.commit();
-    }
-    localStorage.setItem('vmig_0930', '1');
-  } catch(e) { console.error(e); }
-  // آيات الأربع 23/09 → خميس 17/09 (حضور أسبوعها). اللي ليه آية متسجلة أصلًا على 17/09 بنسيب آيته زي ما هي عشان ميتكررش
-  if (localStorage.getItem('vmig_0923b')) return;
-  try {
-    const [s23, s17] = await Promise.all([
-      countedGetDocs(query(collection(db,'verses'), where('date','==','2026-09-23')), 'verses (نقل تاريخ قديم 23/09 - مرة واحدة)'),
-      countedGetDocs(query(collection(db,'verses'), where('date','==','2026-09-17')), 'verses (نقل تاريخ قديم 17/09 - مرة واحدة)')
-    ]);
-    const had = new Set(s17.docs.map(d => d.data().studentId));
-    const docs = s23.docs.filter(d => !had.has(d.data().studentId));
-    for (let i = 0; i < docs.length; i += 400) {
-      const b = writeBatch(db);
-      docs.slice(i, i + 400).forEach(d => b.update(d.ref, { date: '2026-09-17', classSection: d.data().classSection ?? clsOf(d.data().studentId) }));
-      await b.commit();
-    }
-    localStorage.setItem('vmig_0923b', '1');
-  } catch(e) { console.error(e); }
 }
 function startTodayListeners() {
   if (!todayAttendanceUnsub) listenTodayAttendance();
-  if (!todayVersesUnsub) migrateLegacyVerses().then(() => { if (!todayVersesUnsub) listenTodayVerses(); });
 }
 function stopTodayListeners() {
   if (todayAttendanceUnsub) { todayAttendanceUnsub(); todayAttendanceUnsub = null; todayAttSyncAt = Date.now(); }
-  if (todayVersesUnsub)     { todayVersesUnsub();     todayVersesUnsub     = null; }
 }
 let attListenKey = null;
 function listenTodayAttendance() {
@@ -3614,135 +3535,14 @@ function listenTodayAttendance() {
   );
 }
 
-// حضور... يعني سماع الآية النهارده، بث لحظي بنفس فكرة الحضور بالظبط: أي خادم يسجل سماع لمخدوم،
-// كل الخدام التانيين الفاتحين نفس الفصل في نفس اللحظة يشوفوا التحديث فورًا من غير ما يعملوا reload
-let verseListenKey = null;
-function listenTodayVerses() {
-  if (todayVersesUnsub) { todayVersesUnsub(); todayVersesUnsub = null; }
-  const today = verseKey();
-  verseListenKey = today;
-  todayVersesUnsub = onSnapshot(
-    todayQuery('verses', today),
-    snap => {
-      countSnapshotReads('verses (اليوم - live)', snap);
-      const prevV = todayVerses, prevVT = todayVerseTime;
-      todayVerses = {}; todayVerseTime = {};
-      snap.docs.forEach(d => {
-        const data = d.data();
-        todayVerses[data.studentId] = { id: d.id, verse: data.verse || '' };
-        todayVerseTime[data.studentId] = tsToMillis(data.timestamp);
-      });
-      for (const id in prevV) if (outsideAllowed(id) && !todayVerses[id]) { todayVerses[id] = prevV[id]; todayVerseTime[id] = prevVT[id]; }
-      if (!allVerses[today]) allVerses[today] = {};
-      allVerses[today] = { ...todayVerses };
-      renderTodayList();
-      if (typeof onManualSearch === 'function') onManualSearch();
-    },
-    err => console.error('today verses listener error:', err)
-  );
-}
-
-// ===== فلتر التسميع في الافتقاد: بنحمّل آيات آخر كام أسبوع (بنفس فكرة تحميل الحضور) =====
-let recentVerseWeeks = 0, recentVerseScope = null, recentVerseSyncAt = 0, verseRefreshBusy = false, verseLoadP = Promise.resolve();
-const verseFilterWeeks = () => (parseInt(verseFilter) || 0) + 2;
-const verseIsStale = () => !todayVersesUnsub && (Date.now() - recentVerseSyncAt) > ATT_TTL;
-// التاريخ بيتحسب "مرة" لو فيه سماع فعلي مسجّل فيه بس
-// جلسات التسميع الحقيقية بس: تاريخها لازم يكون يوم خميس (verseKey دايمًا خميس). أي تاريخ تاني (زي 23/09 من النقل القديم) بقايا مش جلسة
-const isThursdayKey = k => { const [y,m,d] = k.split('-').map(Number); return new Date(y, m-1, d).getDay() === 4; };
-// الأسبوع الجاري (verseKey) لسه ناقص لحد الجمعة بالليل، فمبنحسبوش جلسة في الفلتر عشان ميبقاش شرط "سمع كل المرات" مستحيل
-function verseSessionDates() { const cur = verseKey(); return Object.keys(allVerses).filter(d => d !== cur && isThursdayKey(d) && allVerses[d] && Object.keys(allVerses[d]).length).sort(); }
-function ensureRecentVerses(weeks) {
-  const run = verseLoadP.catch(() => {}).then(() => _ensureRecentVerses(weeks));
-  verseLoadP = run;
-  return run;
-}
-const VERSE_CACHE_KEY = 'verse_recent_cache_v2'; // v2: الكاش القديم كان ممكن يفضل ناقص آيات اتنقلت/اتصلّحت بعد ما اتخزن
-let verseForceFull = false, verseRetriedFull = false; // قراءة كاملة من فايرستور بدون كاش (بتتفعّل تلقائي لو الفلتر رجّع فاضي)
-// نفس فكرة الحضور: القراءة محصورة في فصل الخادم، والأسابيع اللي فاتت متخزنة على الجهاز، وبنقرا من آخر مزامنة بس
-async function _ensureRecentVerses(weeks) {
-  weeks = Math.max(weeks || 4, 4);
-  const scope = readScopeClasses(), scopeKey = scope.join(',');
-  if (recentVerseScope !== null && recentVerseScope !== scopeKey) recentVerseWeeks = 0;
-  recentVerseScope = scopeKey;
-  if (recentVerseWeeks >= weeks && !verseIsStale()) return;
-  const d = new Date(); d.setDate(d.getDate() - weeks * 7);
-  const fromKey = toLocalDateKey(d), nowKey = verseKey();
-  const liveToday = !!todayVersesUnsub; // البث اللحظي لأسبوع التسميع الحالي أحدث من أي قراءة
-  // تصليح لمرة واحدة على الجهاز: آيات قديمة اتسجلت من غير فصل فكانت مش بتظهر في استعلام الفصل
-  if (!localStorage.getItem('vbf_cls1') && allStudents.length) {
-    try {
-      const all = await countedGetDocs(query(collection(db,'verses'), where('date','>=', fromKey)), 'verses (تصليح فصل الآيات - مرة واحدة)');
-      const miss = all.docs.filter(x => !x.data().classSection && clsOf(x.data().studentId));
-      for (let i = 0; i < miss.length; i += 400) {
-        const bt = writeBatch(db);
-        miss.slice(i, i + 400).forEach(x => bt.update(x.ref, { classSection: clsOf(x.data().studentId) }));
-        await bt.commit();
-      }
-      localStorage.setItem('vbf_cls1', '1');
-    } catch(e) { console.warn('verse classSection backfill failed', e); }
-  }
-  let c = null; try { c = JSON.parse((await idbGet(VERSE_CACHE_KEY + '@' + scopeKey)) || 'null'); } catch(e) {}
-  const forceFull = verseForceFull; verseForceFull = false;
-  const fresh = !forceFull && !!(c && c.data && c.from && c.from <= fromKey && c.through && (c.scope || '') === scopeKey && (Date.now() - (c.fullTs || 0)) < 7*24*3600*1000);
-  const data = fresh ? c.data : {};
-  const qFrom = fresh ? c.through : fromKey;
-  const cons = [where('date','>=', qFrom)];
-  if (liveToday) cons.push(where('date','<', nowKey)); // أسبوع التسميع الحالي جاي من البث اللحظي، مفيش داعي نقراه تاني
-  let snap = null, usedKey = scopeKey;
-  if (!(liveToday && qFrom >= nowKey)) {
-    try {
-      snap = await countedGetDocs(scope.length ? query(collection(db,'verses'), ...cons, where('classSection','in', scope)) : query(collection(db,'verses'), ...cons), 'verses (نطاق زمني - فلتر الافتقاد)');
-    } catch(e) {
-      if (!scope.length) throw e;
-      console.warn('أنشئ index مركب لـ verses (classSection + date):', e && e.message);
-      snap = await countedGetDocs(query(collection(db,'verses'), ...cons), 'verses (نطاق زمني - بدون index)'); usedKey = '';
-    }
-  }
-  if (snap) {
-    for (const k of Object.keys(data)) if (k >= qFrom) delete data[k];
-    snap.docs.forEach(x => {
-      const v = x.data();
-      if (usedKey === '' && scope.length && !scope.includes(v.classSection || clsOf(v.studentId))) return;
-      if (!data[v.date]) data[v.date] = {};
-      data[v.date][v.studentId] = { id: x.id, verse: v.verse || '' };
-    });
-  }
-  for (const k in data) {
-    if (k < fromKey) continue;
-    if (liveToday && k === nowKey) continue;
-    allVerses[k] = { ...data[k] };
-  }
-  for (const k of Object.keys(allVerses)) if (k >= fromKey && !(liveToday && k === nowKey) && !data[k]) delete allVerses[k];
-  recentVerseSyncAt = Date.now();
-  recentVerseWeeks = weeks;
-  idbSet(VERSE_CACHE_KEY + '@' + scopeKey, JSON.stringify({ from: fresh ? c.from : fromKey, through: nowKey, fullTs: fresh ? c.fullTs : Date.now(), scope: usedKey, data }));
-}
-
-// لو الموقع فاضل مفتوح عدّى سبت: بنصفّر قايمة التسميع ونسمع على أسبوع التسميع الجديد
+// لو الموقع فاضل مفتوح عدّى يوم: بنصفّر قايمة الحضور ونسمع على اليوم الجديد
 setInterval(() => {
   if (todayAttendanceUnsub && attListenKey && todayKey() !== attListenKey) {
     todayAttendance = {}; todayAttendanceTime = {};
     listenTodayAttendance();
     updateStats(); renderTodayList();
   }
-  if (todayVersesUnsub && verseListenKey && verseKey() !== verseListenKey) {
-    todayVerses = {}; todayVerseTime = {};
-    listenTodayVerses();
-    renderTodayList();
-  }
 }, 60 * 1000);
-
-async function loadAllVerses() {
-  const snap = await countedGetDocs(collection(db,'verses'), 'verses (الكل - غير مستخدمة)');
-  allVerses = {}; todayVerses = {}; todayVerseTime = {};
-  const today = todayKey();
-  snap.docs.forEach(d => {
-    const data = d.data();
-    if (!allVerses[data.date]) allVerses[data.date] = {};
-    allVerses[data.date][data.studentId] = { id: d.id, verse: data.verse || '' };
-    if (data.date === today) { todayVerses[data.studentId] = { id: d.id, verse: data.verse || '' }; todayVerseTime[data.studentId] = tsToMillis(data.timestamp); }
-  });
-}
 
 async function markPresent(studentId) {
   if (todayAttendance[studentId]) return false;
@@ -3754,43 +3554,6 @@ async function markPresent(studentId) {
   updateStats(); renderTodayList();
   return true;
 }
-
-// ===== VERSE (independent from attendance) =====
-window.showVerseModal = async function(studentId) {
-  if (!verseOpen()) { showToast(VERSE_CLOSED_MSG, 'error'); return; }
-  const today = verseKey();
-  if (todayVerses[studentId]) return; // already marked
-  try {
-    const ref = await addDoc(collection(db,'verses'), { studentId, date: today, verse: '', classSection: clsOf(studentId), timestamp: serverTimestamp() });
-    todayVerses[studentId] = { id: ref.id, verse: '' };
-    todayVerseTime[studentId] = Date.now();
-    if (!allVerses[today]) allVerses[today] = {};
-    allVerses[today][studentId] = { id: ref.id, verse: '' };
-    renderTodayList();
-    onManualSearch();
-    showToast('✅ تم تسجيل السماع', 'success');
-    navigator.vibrate?.([60,30,60]);
-    const s = allStudents.find(x => x.id === studentId);
-    logActivity('تسجيل سماع آية', s?.name || '');
-  } catch(e) {
-    showToast('خطأ في الحفظ', 'error');
-  }
-};
-
-window.removeVerse = async (studentId) => {
-  const entry = todayVerses[studentId];
-  if (!entry) return;
-  if (!confirm('هتشيل السماع؟')) return;
-  await deleteDoc(doc(db,'verses',entry.id));
-  delete todayVerses[studentId];
-  delete todayVerseTime[studentId];
-  const today = verseKey();
-  if (allVerses[today]) delete allVerses[today][studentId];
-  renderTodayList();
-  onManualSearch();
-  showToast('تم حذف السماع', 'success');
-};
-
 
 window.removeAttendance = async (studentId) => {
   const s = allStudents.find(x => x.id === studentId);
@@ -3808,7 +3571,7 @@ window.removeAttendance = async (studentId) => {
 // ===== فلتر وترتيب قائمة اليوم =====
 window.setTodayListFilter = (mode, btn) => {
   todayListFilter = mode;
-  document.querySelectorAll('#today-filter-all,#today-filter-attendance,#today-filter-verse,#today-filter-birthday').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#today-filter-all,#today-filter-attendance,#today-filter-birthday').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   updateStats();
   renderTodayList();
@@ -3847,22 +3610,18 @@ window.toggleGift = async (id) => {
 // وقت الحدث اللي بنرتب بيه، حسب الفلتر الحالي
 function todayListRelevantTime(s) {
   const at = todayAttendanceTime[s.id];
-  const vt = todayVerseTime[s.id];
   if (todayListFilter === 'attendance') return todayAttendance[s.id] ? (at ?? 0) : null;
-  if (todayListFilter === 'verse') return todayVerses[s.id] ? (vt ?? 0) : null;
-  const times = [at, vt].filter(t => t != null);
-  return times.length ? Math.min(...times) : null;
+  return at != null ? at : null;
 }
 
 function renderTodayList() {
-  updateStats(); // الأرقام اللي فوق دايمًا مظبوطة على الفلتر الحالي حتى لو الحدث جه من تسجيل سماع أو بث لحظي
+  updateStats(); // الأرقام اللي فوق دايمًا مظبوطة على الفلتر الحالي حتى لو الحدث جه من بث لحظي
   const cont = document.getElementById('today-list');
   if (!allStudents.length) { cont.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div>أضف مخدومين أولاً</div>`; return; }
 
   const visibleClasses = [currentClassTab];
   let filtered = allStudents.filter(s => visibleClasses.includes(s.classSection)).filter(s => {
     if (todayListFilter === 'attendance') return !!todayAttendance[s.id];
-    if (todayListFilter === 'verse')      return !!todayVerses[s.id];
     if (todayListFilter === 'birthday')   return isBirthdayThisMonth(s);
     return true; // 'all'
   });
@@ -3887,22 +3646,18 @@ function renderTodayList() {
 
   cont.innerHTML = sorted.map(s => {
     const present = !!todayAttendance[s.id];
-    const verseEntry = todayVerses[s.id];
-    const hasVerse = !!verseEntry;
     const isBday = todayListFilter === 'birthday';
-    return `<div class="student-item ${present?'present':''}${hasVerse&&!present?' verse-only':''}">
+    return `<div class="student-item ${present?'present':''}">
       ${studentAvatarHTML(s,'s-avatar')}
       <div class="s-info"${isBday ? ' style="flex:0 1 auto"' : ''}>
         <div class="s-name">${s.name}</div>
         ${isBday ? `<div class="s-sub" style="color:#f1c40f">🎂 ${birthdayDay(s)}/${birthdayMonth(s)}${s.dob ? ' — ' + (new Date().getFullYear() - parseInt(String(s.dob).split('-')[0], 10)) + ' سنة' : ''}</div>` : ''}
-        ${hasVerse ? `<div class="s-sub" style="color:#a07de0">📖 ${verseEntry.verse}</div>` : ''}
       </div>
       ${isBday ? `<div class="gift-slot">${giftGiven(s)
         ? `<div class="check-box gift-box checked" title="استلم الهدية — اضغط للإلغاء" onclick="toggleGift('${s.id}')">✓</div>`
         : `<div class="gift-icon" title="اضغط لتسجيل استلام الهدية" onclick="toggleGift('${s.id}')">🎁</div>`}</div>` : ''}
       <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
         <div class="check-box att-box${present?' checked':''}" onclick="${present?`removeAttendance('${s.id}')`:`quickToggleAttendance('${s.id}')`}">${present?'✓':''}</div>
-        <div class="check-box verse-box${hasVerse?' checked':''}" title="${hasVerse?verseEntry.verse:'تسجيل آية'}" onclick="${hasVerse?`removeVerse('${s.id}')`:`showVerseModal('${s.id}')`}">${hasVerse?'✓':'📖'}</div>
       </div>
     </div>`;
   }).join('');
@@ -3915,19 +3670,9 @@ function updateStats() {
   const bday = mode === 'birthday';
   if (bday) base = base.filter(isBirthdayThisMonth); // فلتر الأعياد: الأرقام على أعياد ميلاد الشهر بس
   const isAtt = s => !!todayAttendance[s.id];
-  const isVerse = s => !!todayVerses[s.id];
-  // الكروت التلاتة بتتغير حسب الفلتر: [العنوان، الرقم]
-  let c1, c2, c3;
-  if (mode === 'attendance') {        // اللي حضروا: كام منهم سمّع وكام لأ
-    const set = base.filter(isAtt), heard = set.filter(isVerse).length;
-    c1 = ['حضروا', set.length]; c2 = ['سمّعوا منهم', heard]; c3 = ['ما سمّعوش', set.length - heard];
-  } else if (mode === 'verse') {      // اللي سمّعوا: كام منهم حضر وكام سمّع من غير حضور
-    const set = base.filter(isVerse), came = set.filter(isAtt).length;
-    c1 = ['سمّعوا', set.length]; c2 = ['حضروا منهم', came]; c3 = ['من غير حضور', set.length - came];
-  } else {                            // الكل / أعياد الميلاد
-    const present = base.filter(isAtt).length;
-    c1 = [bday ? 'أعياد الشهر' : 'إجمالي', base.length]; c2 = ['حاضر', present]; c3 = ['غائب', base.length - present];
-  }
+  // الكروت التلاتة: إجمالي / حاضر / غائب (أو أعياد الشهر لو فلتر الأعياد)
+  const present = base.filter(isAtt).length;
+  const c1 = [bday ? 'أعياد الشهر' : 'إجمالي', base.length], c2 = ['حاضر', present], c3 = ['غائب', base.length - present];
   const set = (id, c) => { document.getElementById(id).textContent = c[1]; document.getElementById(id + '-label').textContent = c[0]; };
   set('stat-total', c1); set('stat-present', c2); set('stat-absent', c3);
   const gc = document.getElementById('stat-gift-card');
@@ -3968,15 +3713,12 @@ window.onManualSearch = () => {
       </div>`;
     }
     const isPresent = !!todayAttendance[s.id];
-    const hasVerse  = !!todayVerses[s.id];
-    const verseText = todayVerses[s.id]?.verse || '';
     const otherClass = !visibleClasses.includes(s.classSection);
     const classBadge = classBadgeHTML(s.classSection, otherClass);
     return `<div class="result-item" style="cursor:default">
       ${studentAvatarHTML(s,'result-avatar')}
       <div style="flex:1;font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px">${s.name} ${classBadge}</div>
       <div class="check-box att-box${isPresent?' checked':''}" onclick="event.stopPropagation();${isPresent?`removeAttendance('${s.id}')`:`manualMarkAndClear('${s.id}')`}">${isPresent?'✓':''}</div>
-      <div class="check-box verse-box${hasVerse?' checked':''}" title="${hasVerse?verseText:'تسجيل آية'}" onclick="event.stopPropagation();${hasVerse?`removeVerse('${s.id}')`:`manualVerseAndClear('${s.id}')`}">${hasVerse?'✓':'📖'}</div>
     </div>`;
   }).join('');
 };
@@ -4041,15 +3783,6 @@ window.manualMarkAndClear = async (id) => {
   input.focus();
 };
 
-// نفس فكرة manualMarkAndClear بس لتسجيل السماع (الآية): يتسجل السماع فورًا، وبعدين تتفضى خانة البحث عشان تكتب اسم جديد على طول
-window.manualVerseAndClear = async (id) => {
-  await showVerseModal(id);
-  const input = document.getElementById('manual-input');
-  input.value = '';
-  document.getElementById('manual-results').innerHTML = '';
-  input.focus();
-};
-
 // ===== FILTERS =====
 window.setBdayMonth = (m) => {
   bdayMonth = parseInt(m);
@@ -4083,16 +3816,6 @@ window.setAttendanceFilter = (v, btn) => {
   renderFilterList();
 };
 
-window.setVerseFilter = (v, btn) => {
-  verseFilter = v;
-  verseRetriedFull = false;
-  document.querySelectorAll('#verse-chips .filter-chip').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('verse-value').textContent = btn.textContent.trim();
-  btn.closest('details')?.removeAttribute('open');
-  renderFilterList();
-};
-
 window.setNoteFilter = (v, btn) => {
   noteFilter = v;
   document.querySelectorAll('#note-chips .filter-chip').forEach(b => b.classList.remove('active'));
@@ -4114,14 +3837,6 @@ function renderFilterList() {
     attRefreshBusy = true;
     ensureRecentAttendance(filterWeeks()).then(() => { attRefreshBusy = false; renderFilterList(); }).catch(() => { attRefreshBusy = false; });
   }
-  const verseScopeChanged = recentVerseScope !== null && recentVerseScope !== readScopeClasses().join(','); // الفصل اتغيّر: لازم نحمّل تسميع الفصل الجديد
-  if (verseFilter !== 'all' && (verseScopeChanged || recentVerseWeeks < verseFilterWeeks() || verseIsStale()) && !verseRefreshBusy) {
-    cont.innerHTML = `<div class="loading"><div class="spinner"></div>جاري التحميل…</div>`;
-    verseRefreshBusy = true;
-    ensureRecentVerses(verseFilterWeeks()).then(() => { verseRefreshBusy = false; renderFilterList(); }).catch(() => { verseRefreshBusy = false; cont.innerHTML = '<div class="empty-state">تعذّر التحميل<br><button class="action-btn" style="margin-top:10px" onclick="renderFilterList()">🔄 حاول تاني</button></div>'; });
-    return;
-  }
-  if (verseFilter !== 'all' && verseRefreshBusy) return;
   const dates = attSessionDates();
   let list = [...allStudents];
   const allowed = getAllowedAssignedClasses();
@@ -4141,13 +3856,6 @@ function renderFilterList() {
     const n = parseInt(attendanceFilter);
     const lastDates = dates.slice(-n);
     list = list.filter(s => lastDates.length === n && lastDates.every(d => !!allAttendance[d]?.[s.id]));
-  }
-  if (verseFilter !== 'all') {
-    const vDates = verseSessionDates();
-    const n = parseInt(verseFilter);
-    const lastV = vDates.slice(-n);
-    window._verseMatchDbg = vDates.map(d => d + ' → ' + list.filter(s => allVerses[d]?.[s.id]).length + ' مطابق').join(' · ');
-    list = list.filter(s => lastV.length === n && lastV.every(d => !!allVerses[d]?.[s.id]));
   }
   if (noteFilter === 'noReason') {
     list = list.filter(s => !Array.isArray(s.visitNotes) || s.visitNotes.length === 0);
@@ -4170,19 +3878,8 @@ function renderFilterList() {
     return c !== 0 ? c : a.name.localeCompare(b.name, 'ar');
   });
   document.getElementById('filter-count').textContent = `${list.length} مخدوم`;
-  if (!list.length && verseFilter !== 'all' && !verseRetriedFull) {
-    // النتيجة فاضية: ممكن الكاش المحلي ناقص، فبنعمل قراءة كاملة مرة واحدة من فايرستور ونعيد الفلتر
-    verseRetriedFull = true; verseForceFull = true; recentVerseWeeks = 0;
-    renderFilterList();
-    return;
-  }
   if (!list.length) {
-    let dbg = '';
-    if (verseFilter !== 'all') {
-      const vd = verseSessionDates();
-      dbg = `<div style="margin-top:12px;font-size:11px;opacity:.7;direction:ltr;line-height:1.8">[تشخيص] جلسات التسميع: ${vd.length ? vd.map(d => d + ' (' + Object.keys(allVerses[d]).length + ')').join(' · ') : 'مفيش'}<br>مطابقة مع المخدومين الحاليين (من غير الأسبوع الجاري): ${window._verseMatchDbg || '-'}<br>الفصول: ${readScopeClasses().join(',') || 'الكل'} · مخدومين قبل الفلتر: ${classScope(allStudents.filter(s => { const al = getAllowedAssignedClasses(); return currentRole === 'admin' || !al.length || al.includes(s.classSection); })).length}</div>`;
-    }
-    cont.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div>لا يوجد نتائج${dbg}</div>`;
+    cont.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div>لا يوجد نتائج</div>`;
     return;
   }
   cont.innerHTML = list.map(s => {
@@ -4292,24 +3989,16 @@ window.openProfile = (id) => {
     ? s.visitNotes.map(n => NOTE_LABELS[n] ? `${NOTE_LABELS[n].emoji} ${NOTE_LABELS[n].text}` : n).join('، ')
     : `${NOTE_LABELS.noReason.emoji} ${NOTE_LABELS.noReason.text}` });
   studentPhoneEntries(s).forEach(e => fields.push({ icon:'📞', key: e.label, val: e.val, phone: true, idx: e.idx }));
-  // attendance + verse history combined
-  const relevantDates = [...new Set([...Object.keys(H?.att||{}), ...Object.keys(H?.ver||{})])].sort().reverse().slice(0,5);
+  // attendance history
+  const relevantDates = Object.keys(H?.att||{}).sort().reverse().slice(0,5);
   const histHTML = relevantDates.length ? `
     <div style="padding:0 16px 16px">
-      <div class="section-title" style="margin-bottom:10px">📅 سجل الحضور والتسميع</div>
+      <div class="section-title" style="margin-bottom:10px">📅 سجل الحضور</div>
       ${relevantDates.map(d => {
         const p = d.split('-');
-        const att   = !!H?.att[d];
-        const heard = !!H?.ver[d];
-        const verse = H?.ver[d]?.verse || '';
         return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
           <span style="font-size:13px;font-weight:600;color:var(--text-dim)">${p[2]}/${p[1]}/${p[0]}</span>
-          ${att
-            ? `<span style="font-size:11px;background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.25);color:var(--success);border-radius:5px;padding:2px 7px">✓ حاضر</span>`
-            : `<span style="font-size:11px;background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--text-dim);opacity:.4;border-radius:5px;padding:2px 7px">حاضر</span>`}
-          ${heard
-            ? `<span style="font-size:11px;color:#a07de0;background:rgba(124,92,191,0.1);border:1px solid rgba(124,92,191,0.25);border-radius:5px;padding:2px 7px">📖 سماع${verse ? ' · ' + verse : ''}</span>`
-            : `<span style="font-size:11px;background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--text-dim);opacity:.4;border-radius:5px;padding:2px 7px">سماع</span>`}
+          <span style="font-size:11px;background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.25);color:var(--success);border-radius:5px;padding:2px 7px">✓ حاضر</span>
         </div>`;
       }).join('')}
     </div>` : '';
@@ -4369,51 +4058,6 @@ window.closeProfileOutside = (e) => { if (e.target.id === 'profile-modal') close
 
 // ===== VOICE ATTENDANCE =====
 let voiceRecognition = null, voiceListening = false, voiceRestartTimer = null;
-let voiceMode = 'attendance'; // 'attendance' (تسجيل حضور) أو 'verse' (تسجيل سماع آية)
-
-// بيدوّر في الكلام المسموع على أمر تغيير الوضع ("تسجيل آية" / "تسميع" / "تسجيل حضور")،
-// وبيرجع الوضع الجديد (لو لقى أمر) + باقي الكلام من غير كلمات الأمر (لو المستخدم قال اسم مع الأمر في نفس الجملة)
-function extractVoiceCommand(rawText) {
-  const norm = normalizeArabic(rawText);
-  let words = norm.split(' ').filter(Boolean);
-  let mode = null;
-  if (words.includes('تسميع')) {
-    mode = 'verse';
-    words = words.filter(w => w !== 'تسميع');
-  } else if (words.includes('تسجيل') && words.includes('ايه')) {
-    mode = 'verse';
-    words = words.filter(w => w !== 'تسجيل' && w !== 'ايه');
-  } else if (words.includes('تسجيل') && words.includes('حضور')) {
-    mode = 'attendance';
-    words = words.filter(w => w !== 'تسجيل' && w !== 'حضور');
-  }
-  return { mode, remainder: words.join(' ').trim() };
-}
-
-function updateVoiceModeUI() {
-  const badge = document.getElementById('voice-mode-badge');
-  const hint = document.getElementById('voice-hint');
-  if (!badge) return;
-  if (voiceMode === 'verse') {
-    badge.textContent = '📖 وضع: تسجيل سماع آية';
-    badge.style.background = 'rgba(124,92,191,0.14)';
-    badge.style.borderColor = 'rgba(124,92,191,0.35)';
-    badge.style.color = '#a07de0';
-    if (hint) hint.textContent = 'قول أسماء المخدومين واحد ورا التاني، هيتسجلوا "سماع" على طول — قول "تسجيل حضور" عشان ترجع لتسجيل الحضور';
-  } else {
-    badge.textContent = '✓ وضع: تسجيل حضور';
-    badge.style.background = 'rgba(46,204,113,0.12)';
-    badge.style.borderColor = 'rgba(46,204,113,0.3)';
-    badge.style.color = 'var(--success)';
-    if (hint) hint.textContent = 'قول اسم المخدوم (اسمين بيكفوا) — أو قول "تسجيل آية" عشان تبدأ تسجّل سماع';
-  }
-}
-
-window.toggleVoiceMode = () => {
-  voiceMode = voiceMode === 'verse' ? 'attendance' : 'verse';
-  updateVoiceModeUI();
-  showToast(voiceMode === 'verse' ? '📖 وضع تسجيل السماع شغال' : '✅ وضع تسجيل الحضور شغال', 'info');
-};
 
 function buildVoiceRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -4482,13 +4126,11 @@ window.startVoice = () => {
     return;
   }
   voiceListening = true;
-  voiceMode = 'attendance';
   document.getElementById('voice-toggle-btn').style.display = 'none';
   document.getElementById('voice-zone').style.display = 'block';
   document.getElementById('voice-stop-btn').style.display = 'block';
   document.getElementById('voice-heard').textContent = 'بيسمعك دلوقتي…';
   document.getElementById('voice-candidates').innerHTML = '';
-  updateVoiceModeUI();
 };
 
 window.stopVoice = () => {
@@ -4506,22 +4148,6 @@ async function processVoiceName(altTexts) {
   let texts = (Array.isArray(altTexts) ? altTexts : [altTexts]).filter(Boolean);
   if (!texts.length) return;
   let displayText = texts[0];
-
-  // هل الكلام ده أمر تغيير وضع ("تسجيل آية" / "تسميع" / "تسجيل حضور")؟
-  const cmd = extractVoiceCommand(displayText);
-  if (cmd.mode) {
-    voiceMode = cmd.mode;
-    updateVoiceModeUI();
-    if (!cmd.remainder) {
-      // الجملة كانت الأمر بس من غير اسم — نوقف هنا ونستنى الاسم اللي جاي
-      showToast(voiceMode === 'verse' ? '📖 وضع تسجيل السماع شغال — قول الأسماء' : '✅ وضع تسجيل الحضور شغال — قول الأسماء', 'info');
-      document.getElementById('voice-candidates').innerHTML = '';
-      return;
-    }
-    // المستخدم قال الأمر واسم في نفس الجملة (زي "تسجيل آية مينا") — نكمل بالاسم الباقي في الوضع الجديد
-    texts = [cmd.remainder];
-    displayText = cmd.remainder;
-  }
 
   // بنجمع درجات كل البدائل الصوتية اللي المتصفح رجّعها (مش بنوقف عند أول واحد بيدّي مرشحين)،
   // عشان لو أول بديل سمعه غلط والبديل التاني/التالت كان أصح، برضه ناخد بالنتيجة الأدق من الكل
@@ -4555,24 +4181,19 @@ async function processVoiceName(altTexts) {
     return;
   }
 
-  const isVerseMode = voiceMode === 'verse';
-  const alreadyDone = s => isVerseMode ? !!todayVerses[s.id] : !!todayAttendance[s.id];
+  const alreadyDone = s => !!todayAttendance[s.id];
 
   if (list.length === 1) {
     const s = list[0];
     if (alreadyDone(s)) {
-      showToast(`${s.name} — ${isVerseMode ? 'مسجّل سماعه مسبقاً' : 'مسجّل مسبقاً'} ✓`, 'info');
+      showToast(`${s.name} — مسجّل مسبقاً ✓`, 'info');
       candWrap.innerHTML = '';
       return;
     }
-    if (isVerseMode) {
-      await registerVerseVoice(s.id);
-    } else {
-      await markPresent(s.id);
-      showToast(`✅ ${s.name} — تم التسجيل بالصوت`, 'success');
-      navigator.vibrate?.([60,30,60]);
-      logActivity('تسجيل حضور (صوت)', s.name);
-    }
+    await markPresent(s.id);
+    showToast(`✅ ${s.name} — تم التسجيل بالصوت`, 'success');
+    navigator.vibrate?.([60,30,60]);
+    logActivity('تسجيل حضور (صوت)', s.name);
     candWrap.innerHTML = '';
     return;
   }
@@ -4585,46 +4206,20 @@ async function processVoiceName(altTexts) {
         ${studentAvatarHTML(s,'result-avatar')}
         <div style="flex:1;font-size:14px;font-weight:700">${s.name}</div>
         ${done
-          ? `<span class="present-badge">✓ ${isVerseMode?'سمع':'حاضر'}</span>`
+          ? `<span class="present-badge">✓ حاضر</span>`
           : `<button onclick="voicePickStudent('${s.id}')" style="background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.3);border-radius:8px;color:var(--success);font-family:Cairo,sans-serif;font-size:12px;font-weight:700;padding:8px 12px;cursor:pointer">✓ ده</button>`}
       </div>`;
     }).join('');
 }
 
-// بيسجل "سماع آية" بالصوت (زي showVerseModal بالظبط) لكن من غير ما يعتمد على إن العنصر النشط في شاشة البحث اليدوي
-async function registerVerseVoice(studentId) {
-  if (!verseOpen()) { showToast(VERSE_CLOSED_MSG, 'error'); return; }
-  const today = verseKey();
-  if (todayVerses[studentId]) return;
-  try {
-    const ref = await addDoc(collection(db,'verses'), { studentId, date: today, verse: '', classSection: clsOf(studentId), timestamp: serverTimestamp() });
-    todayVerses[studentId] = { id: ref.id, verse: '' };
-    todayVerseTime[studentId] = Date.now();
-    if (!allVerses[today]) allVerses[today] = {};
-    allVerses[today][studentId] = { id: ref.id, verse: '' };
-    renderTodayList();
-    const s = allStudents.find(x => x.id === studentId);
-    showToast(`📖 ${s?.name || ''} — تم تسجيل السماع بالصوت`, 'success');
-    navigator.vibrate?.([60,30,60]);
-    logActivity('تسجيل سماع آية (صوت)', s?.name || '');
-  } catch(e) {
-    showToast('خطأ في الحفظ', 'error');
-  }
-}
-
 window.voicePickStudent = async (id) => {
-  const isVerseMode = voiceMode === 'verse';
-  if (isVerseMode ? todayVerses[id] : todayAttendance[id]) return;
-  if (isVerseMode) {
-    await registerVerseVoice(id);
-  } else {
-    const ok = await markPresent(id);
-    if (ok) {
-      const s = allStudents.find(x => x.id === id);
-      showToast(`✅ ${s.name} — تم التسجيل بالصوت`, 'success');
-      navigator.vibrate?.([60,30,60]);
-      logActivity('تسجيل حضور (صوت)', s.name);
-    }
+  if (todayAttendance[id]) return;
+  const ok = await markPresent(id);
+  if (ok) {
+    const s = allStudents.find(x => x.id === id);
+    showToast(`✅ ${s.name} — تم التسجيل بالصوت`, 'success');
+    navigator.vibrate?.([60,30,60]);
+    logActivity('تسجيل حضور (صوت)', s.name);
   }
   document.getElementById('voice-candidates').innerHTML = '';
   document.getElementById('voice-heard').textContent = 'بيسمعك دلوقتي…';
@@ -4721,73 +4316,27 @@ window.openExportModal = () => {
 window.closeExportModal = () => { document.getElementById('export-modal').style.display = 'none'; };
 window.closeExportOutside = (e) => { if (e.target.id === 'export-modal') closeExportModal(); };
 
-// بيبني شيت الحضور/التسميع حسب اللي المستخدم اختاره بالظبط: حضور بس، آية بس، أو الاتنين مع بعض في نفس الشيت
-function buildAttVerseSheet(expAtt, expVer, includeAtt, includeVerse) {
-  const attDates = includeAtt ? Object.keys(expAtt).sort() : [];
-  const verDates = includeVerse ? Object.keys(expVer).sort() : [];
+// بيبني شيت الحضور
+function buildAttSheet(expAtt) {
+  const attDates = Object.keys(expAtt).sort();
   const fmt = d => { const p = d.split('-'); return `${p[2]}/${p[1]}`; };
-
-  let cols, dual;
-  if (includeAtt && includeVerse) {
-    // كل تاريخ حضور بيبقى عمود، وأي تاريخ آية من غيره ينضم لأقرب تاريخ حضور سابق له
-    cols = attDates.map(d => ({ dateKey: d, verseDates: [d] }));
-    verDates.forEach(vd => {
-      if (attDates.includes(vd)) return;
-      let target = null;
-      for (const c of cols) { if (c.dateKey <= vd) target = c; else break; }
-      if (target) target.verseDates.push(vd);
-      else cols.push({ dateKey: vd, verseDates: [vd] }); // مفيش تاريخ حضور قبله خالص
-    });
-    cols.sort((a,b) => a.dateKey.localeCompare(b.dateKey));
-    dual = true;
-  } else if (includeAtt) {
-    cols = attDates.map(d => ({ dateKey: d, verseDates: [] }));
-    dual = false;
-  } else {
-    cols = verDates.map(d => ({ dateKey: d, verseDates: [d] }));
-    dual = false;
-  }
 
   const row1 = ['الاسم'];
   const row2 = [''];
-  cols.forEach(c => {
-    if (dual) { row1.push(fmt(c.dateKey), ''); row2.push('حضور', 'آية'); }
-    else { row1.push(fmt(c.dateKey)); row2.push(includeAtt ? 'حضور' : 'آية'); }
-  });
+  attDates.forEach(d => { row1.push(fmt(d)); row2.push('حضور'); });
 
-  const rows = exportTargetStudents().map(s => {
-    const r = [s.name];
-    cols.forEach(c => {
-      if (dual) {
-        const att = !!expAtt[c.dateKey]?.[s.id];
-        const vEntry = c.verseDates.map(vd => expVer[vd]?.[s.id]).find(Boolean);
-        r.push(att ? '✓' : '', vEntry ? (vEntry.verse || '✓') : '');
-      } else if (includeAtt) {
-        r.push(expAtt[c.dateKey]?.[s.id] ? '✓' : '');
-      } else {
-        const vEntry = expVer[c.dateKey]?.[s.id];
-        r.push(vEntry ? (vEntry.verse || '✓') : '');
-      }
-    });
-    return r;
-  });
+  const rows = exportTargetStudents().map(s => [s.name, ...attDates.map(d => expAtt[d]?.[s.id] ? '✓' : '')]);
 
   const ws = XLSX.utils.aoa_to_sheet([row1, row2, ...rows]);
-  const perCol = dual ? 2 : 1;
-  const totalCols = 1 + cols.length * perCol;
+  const totalCols = 1 + attDates.length;
 
   ws['!merges'] = [{ s:{r:0,c:0}, e:{r:1,c:0} }];
-  cols.forEach((c,i) => {
-    if (dual) {
-      const start = 1 + i*2;
-      ws['!merges'].push({ s:{r:0,c:start}, e:{r:0,c:start+1} });
-    } else {
-      const col = 1 + i;
-      ws['!merges'].push({ s:{r:0,c:col}, e:{r:1,c:col} });
-    }
+  attDates.forEach((d, i) => {
+    const col = 1 + i;
+    ws['!merges'].push({ s:{r:0,c:col}, e:{r:1,c:col} });
   });
 
-  ws['!cols'] = [{ wch: 30 }, ...cols.flatMap(() => dual ? [{ wch: 10 }, { wch: 18 }] : [{ wch: includeAtt ? 10 : 20 }])];
+  ws['!cols'] = [{ wch: 30 }, ...attDates.map(() => ({ wch: 10 }))];
   ws['!views'] = [{ rightToLeft: true }];
 
   const border = { top:{style:'thin',color:{rgb:'D9D9D9'}}, bottom:{style:'thin',color:{rgb:'D9D9D9'}}, left:{style:'thin',color:{rgb:'D9D9D9'}}, right:{style:'thin',color:{rgb:'D9D9D9'}} };
@@ -4957,12 +4506,11 @@ function exportRangeQuery(col) {
 window.runExportExcel = async () => {
   await ensureAllClassesForAdmin();
   const includeAtt = document.getElementById('export-opt-att').checked;
-  const includeVerse = document.getElementById('export-opt-verse').checked;
   const includeStudents = document.getElementById('export-opt-students').checked;
   const servOk = canExportServants();
   const includeServData = servOk && !!document.getElementById('export-opt-serv-data')?.checked;
   const includeServAtt  = servOk && !!document.getElementById('export-opt-serv-att')?.checked;
-  const anyStudentPart = includeAtt || includeVerse || includeStudents;
+  const anyStudentPart = includeAtt || includeStudents;
   if (!anyStudentPart && !includeServData && !includeServAtt) { showToast('اختار حاجة واحدة على الأقل', 'error'); return; }
   if (anyStudentPart && exportClassChoices().length > 1 && !exportSelectedClasses.size) { showToast('اختار فصل واحد على الأقل للمخدومين', 'error'); return; }
   if ((includeServData || includeServAtt) && exportServClassChoices().length > 1 && !exportServSelected.size) { showToast('اختار فصل واحد على الأقل للخدام', 'error'); return; }
@@ -4977,16 +4525,12 @@ window.runExportExcel = async () => {
   try {
     // المخدومين بيتحمّلوا أول ما تفتح أي فصل — لو التصدير اتفتح من الرئيسية قبل كده القايمة بتبقى فاضية، فبنحمّلها الأول
     if (anyStudentPart) await ensureStudents();
-    if (includeAtt || includeVerse) {
-      const expAtt = {}, expVer = {};
-      const proms = [];
-      if (includeAtt) proms.push(countedGetDocs(exportRangeQuery('attendance'), 'attendance (تصدير إكسل)').then(a => a.docs.forEach(x => { const d = x.data(); (expAtt[d.date] ||= {})[d.studentId] = x.id; })));
-      if (includeVerse) proms.push(countedGetDocs(exportRangeQuery('verses'), 'verses (تصدير إكسل)').then(v => v.docs.forEach(x => { const d = x.data(); (expVer[d.date] ||= {})[d.studentId] = { id:x.id, verse:d.verse||'' }; })));
-      await Promise.all(proms);
-      const sheetName = includeAtt && includeVerse ? 'حضور وتسميع' : (includeAtt ? 'حضور' : 'تسميع');
-      XLSX.utils.book_append_sheet(wb, buildAttVerseSheet(expAtt, expVer, includeAtt, includeVerse), sheetName);
-      if (includeAtt) nameParts.push('حضور');
-      if (includeVerse) nameParts.push('تسميع');
+    if (includeAtt) {
+      const expAtt = {};
+      const a = await countedGetDocs(exportRangeQuery('attendance'), 'attendance (تصدير إكسل)');
+      a.docs.forEach(x => { const d = x.data(); (expAtt[d.date] ||= {})[d.studentId] = x.id; });
+      XLSX.utils.book_append_sheet(wb, buildAttSheet(expAtt), 'حضور');
+      nameParts.push('حضور');
     }
     if (includeStudents) {
       XLSX.utils.book_append_sheet(wb, buildStudentsSheet(), 'مخدومين');
