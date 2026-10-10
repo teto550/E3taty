@@ -678,11 +678,8 @@ details.filter-acc[open] .filter-acc-chevron{transform:rotate(180deg);}
           <div class="filter-acc-body">
             <div class="filter-row" id="note-chips">
               <button class="filter-chip active" onclick="setNoteFilter('all',this)">الكل</button>
-              <button class="filter-chip" onclick="setNoteFilter('traveling',this)">🧳 مسافر</button>
-              <button class="filter-chip" onclick="setNoteFilter('friday',this)">📅 بيحضر يوم الجمعة</button>
-              <button class="filter-chip" onclick="setNoteFilter('otherChurch',this)">⛪ بيحضر كنيسة تانية</button>
-              <button class="filter-chip" onclick="setNoteFilter('motherPregnant',this)">🤰 الأم حامل</button>
-              <button class="filter-chip" onclick="setNoteFilter('noReason',this)">❓ بدون سبب</button>
+              <button class="filter-chip" onclick="setNoteFilter('has',this)">📝 فيه ملحوظة</button>
+              <button class="filter-chip" onclick="setNoteFilter('none',this)">❓ مفيش ملحوظة</button>
             </div>
           </div>
         </details>
@@ -1057,20 +1054,7 @@ details.filter-acc[open] .filter-acc-chevron{transform:rotate(180deg);}
         <div id="edit-other-phones-note" style="display:none;font-size:12px;color:var(--text-dim);background:var(--surface2);border-radius:8px;padding:9px 11px;margin-top:8px;line-height:1.7"></div>
       </div>
       <label class="field-label">ملحوظات الافتقاد</label>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px">
-        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
-          <input type="checkbox" id="edit-note-traveling" style="width:18px;height:18px;accent-color:var(--accent)"> 🧳 مسافر
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
-          <input type="checkbox" id="edit-note-friday" style="width:18px;height:18px;accent-color:var(--accent)"> 📅 بيحضر يوم الجمعة
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
-          <input type="checkbox" id="edit-note-otherchurch" style="width:18px;height:18px;accent-color:var(--accent)"> ⛪ بيحضر في كنيسة تانية
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
-          <input type="checkbox" id="edit-note-motherpregnant" style="width:18px;height:18px;accent-color:var(--accent)"> 🤰 الأم حامل
-        </label>
-      </div>
+      <textarea id="edit-visit-note" class="field-input" rows="3" maxlength="500" placeholder="اكتب ملحوظة الافتقاد (سبب الغياب، آخر زيارة، أي تفاصيل مهمة…)" style="resize:vertical;line-height:1.7"></textarea>
       <div style="display:flex;gap:10px;margin-top:6px">
         <button class="btn-primary" onclick="saveEditStudent()" style="flex:1">💾 حفظ التعديلات</button>
         <button onclick="closeEditModal()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);font-family:Cairo,sans-serif;font-size:15px;font-weight:700;padding:13px 18px;cursor:pointer">إلغاء</button>
@@ -2096,13 +2080,18 @@ function renderSettingsPeopleList() {
   }).join('');
 }
 let filterSiblings = 'all'; // 'all' | 'siblings' | 'nonSiblings' (تبويب الافتقاد)
-const NOTE_LABELS = {
-  traveling:   { emoji:'🧳', text:'مسافر' },
-  friday:      { emoji:'📅', text:'بيحضر يوم الجمعة' },
-  otherChurch: { emoji:'⛪', text:'بيحضر في كنيسة تانية' },
-  motherPregnant: { emoji:'🤰', text:'الأم حامل' },
-  noReason:    { emoji:'❓', text:'بدون سبب' }
+// ملحوظات الافتقاد دلوقتي نص حر بيكتبه أي خادم (s.visitNote).
+// الخريطة دي بس لتحويل الملحوظات الثابتة القديمة (s.visitNotes) لنص عشان متضيعش.
+const LEGACY_NOTE_LABELS = {
+  traveling: '🧳 مسافر',
+  friday: '📅 بيحضر يوم الجمعة',
+  otherChurch: '⛪ بيحضر في كنيسة تانية',
+  motherPregnant: '🤰 الأم حامل'
 };
+function visitNoteText(s) {
+  if (typeof s.visitNote === 'string') return s.visitNote.trim();
+  return (Array.isArray(s.visitNotes) ? s.visitNotes : []).map(n => LEGACY_NOTE_LABELS[n] || '').filter(Boolean).join('، ');
+}
 
 // تحويل تاريخ لصيغة YYYY-MM-DD بالتوقيت المحلي (من غير تحويل لـ UTC عشان ميبوظش التاريخ قرب نص الليل)
 function toLocalDateKey(d) {
@@ -3857,10 +3846,10 @@ function renderFilterList() {
     const lastDates = dates.slice(-n);
     list = list.filter(s => lastDates.length === n && lastDates.every(d => !!allAttendance[d]?.[s.id]));
   }
-  if (noteFilter === 'noReason') {
-    list = list.filter(s => !Array.isArray(s.visitNotes) || s.visitNotes.length === 0);
-  } else if (noteFilter !== 'all') {
-    list = list.filter(s => Array.isArray(s.visitNotes) && s.visitNotes.includes(noteFilter));
+  if (noteFilter === 'none') {
+    list = list.filter(s => !visitNoteText(s));
+  } else if (noteFilter === 'has') {
+    list = list.filter(s => !!visitNoteText(s));
   }
   if (filterSiblings !== 'all') {
     const siblingCounts = computeSiblingCounts(allStudents);
@@ -3886,11 +3875,10 @@ function renderFilterList() {
     let attCount = 0;
     dates.forEach(d => { if (allAttendance[d]?.[s.id]) attCount++; });
     const dob = s.dob ? new Date(s.dob).toLocaleDateString('ar-EG',{day:'numeric',month:'long'}) : '';
-    const notesHTML = (s.visitNotes?.length)
-      ? `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px">${s.visitNotes.map(n => NOTE_LABELS[n]
-          ? `<span style="font-size:10px;background:rgba(124,92,191,0.1);border:1px solid rgba(124,92,191,0.25);color:#a07de0;border-radius:5px;padding:2px 6px">${NOTE_LABELS[n].emoji} ${NOTE_LABELS[n].text}</span>`
-          : '').join('')}</div>`
-      : `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px"><span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-dim);border-radius:5px;padding:2px 6px">${NOTE_LABELS.noReason.emoji} ${NOTE_LABELS.noReason.text}</span></div>`;
+    const noteTxt = visitNoteText(s);
+    const notesHTML = noteTxt
+      ? `<div style="margin-top:4px"><span style="display:inline-block;font-size:11px;line-height:1.6;background:rgba(124,92,191,0.1);border:1px solid rgba(124,92,191,0.25);color:#a07de0;border-radius:5px;padding:3px 7px;white-space:pre-wrap">📝 ${noteTxt.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span></div>`
+      : '';
     return `<div class="student-item">
       ${studentAvatarHTML(s,'s-avatar')}
       <div class="s-info">
@@ -3985,9 +3973,8 @@ window.openProfile = (id) => {
   if (s.dob) fields.push({ icon:'🎂', key:'تاريخ الميلاد', val: new Date(s.dob).toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'}) });
   if (s.address) fields.push({ icon:'📍', key:'العنوان', val: String(s.address).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>') });
   if (s.addressMap && /^https?:\/\//i.test(s.addressMap)) fields.push({ icon:'🗺️', key:'الموقع على الخريطة', link: s.addressMap });
-  fields.push({ icon:'📝', key:'ملحوظات الافتقاد', val: (s.visitNotes?.length)
-    ? s.visitNotes.map(n => NOTE_LABELS[n] ? `${NOTE_LABELS[n].emoji} ${NOTE_LABELS[n].text}` : n).join('، ')
-    : `${NOTE_LABELS.noReason.emoji} ${NOTE_LABELS.noReason.text}` });
+  const _vn = visitNoteText(s);
+  fields.push({ icon:'📝', key:'ملحوظات الافتقاد', val: _vn ? _vn.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>') : '❓ مفيش ملحوظة' });
   studentPhoneEntries(s).forEach(e => fields.push({ icon:'📞', key: e.label, val: e.val, phone: true, idx: e.idx }));
   // attendance history
   const relevantDates = Object.keys(H?.att||{}).sort().reverse().slice(0,5);
@@ -4384,7 +4371,7 @@ function buildStudentsSheet() {
       s.motherPhone || '',
       s.studentPhone || '',
       (hasRolePhones(s) ? (s.otherPhones||[]) : (s.phones||[])).filter(Boolean).join(' / '),
-      (s.visitNotes?.length) ? s.visitNotes.map(n => NOTE_LABELS[n]?.text || n).join('، ') : ''
+      visitNoteText(s)
     ]);
   const ws = XLSX.utils.aoa_to_sheet([row1, ...rows]);
   ws['!cols'] = [{wch:26},{wch:8},{wch:18},{wch:14},{wch:26},{wch:16},{wch:16},{wch:16},{wch:22},{wch:26}];
@@ -6295,11 +6282,7 @@ window.openEditModal = (id) => {
   document.getElementById('edit-class').value   = s.classSection || '';
   document.getElementById('edit-avatar').textContent = s.name.trim()[0] || '؟';
   document.getElementById('edit-sub').textContent    = s.name;
-  const notes = s.visitNotes || [];
-  document.getElementById('edit-note-traveling').checked   = notes.includes('traveling');
-  document.getElementById('edit-note-friday').checked      = notes.includes('friday');
-  document.getElementById('edit-note-otherchurch').checked = notes.includes('otherChurch');
-  document.getElementById('edit-note-motherpregnant').checked = notes.includes('motherPregnant');
+  document.getElementById('edit-visit-note').value = visitNoteText(s);
 
   // أرقام قديمة مش متحدد صاحبها (من قبل التعديل ده) بتفضل محفوظة، وبتتشال أول ما تتكتب في الخانة الصح
   editOtherPhones = hasRolePhones(s) ? (s.otherPhones || []).filter(Boolean) : (s.phones || []).filter(Boolean);
@@ -6336,11 +6319,7 @@ window.saveEditStudent = async () => {
   const err = validateStudentData({ name, dob, address, father, mother, student, others, map: addressMap });
   if (err) { showToast(err, 'error'); return; }
   const prev = allStudents.find(s => s.id === id);
-  const visitNotes = [];
-  if (document.getElementById('edit-note-traveling').checked)   visitNotes.push('traveling');
-  if (document.getElementById('edit-note-friday').checked)      visitNotes.push('friday');
-  if (document.getElementById('edit-note-otherchurch').checked) visitNotes.push('otherChurch');
-  if (document.getElementById('edit-note-motherpregnant').checked) visitNotes.push('motherPregnant');
+  const visitNote = document.getElementById('edit-visit-note').value.trim().slice(0, 500);
   const data = {
     name,
     dob,
@@ -6349,7 +6328,8 @@ window.saveEditStudent = async () => {
     gender:  document.getElementById('edit-gender').value || '',
     classSection: document.getElementById('edit-class').value || '',
     ...buildPhoneFields(father, mother, student, others, prev),
-    visitNotes
+    visitNote,
+    visitNotes: []
   };
   try {
     await updateDoc(doc(db,'students',id), { ...data, updatedAt: serverTimestamp() }); bumpStudentsRev();
