@@ -443,6 +443,17 @@ body{background:var(--bg)}
 .bulk-bar-in button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 .role-editor-actions{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--border);padding:12px 0 calc(12px + env(safe-area-inset-bottom));margin-top:8px;display:flex;gap:10px;z-index:5}
 .role-sec{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+/* ===== ألوان أنشطة حضور الخادمات (كل نشاط بلونه عشان تعرفي واقفة على إيه) ===== */
+[data-actc="mass"]{--c:160,125,224}[data-actc="sunday_school"]{--c:79,142,247}[data-actc="meeting"]{--c:46,204,113}[data-actc="preparation"]{--c:243,156,18}
+#class-serv-att-activity-chips{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:transparent;border:none;padding:0}
+#class-serv-att-activity-chips .tab{display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 8px;border-radius:14px;background:var(--surface);border:1px solid var(--border);font-size:14px;font-weight:700;color:var(--text-dim)}
+#class-serv-att-activity-chips .tab[data-act="mass"]{--c:160,125,224}#class-serv-att-activity-chips .tab[data-act="sunday_school"]{--c:79,142,247}#class-serv-att-activity-chips .tab[data-act="meeting"]{--c:46,204,113}#class-serv-att-activity-chips .tab[data-act="preparation"]{--c:243,156,18}
+#serv-att-activity-chips .tab:not(.active),#class-serv-att-activity-chips .tab:not(.active){opacity:.75}
+#serv-att-activity-chips .tab.active,#class-serv-att-activity-chips .tab.active{background:rgba(var(--c),.28);border:2px solid rgb(var(--c));color:var(--text);font-weight:900;box-shadow:0 0 0 3px rgba(var(--c),.12);animation:none;opacity:1}
+.serv-act-banner{display:flex;align-items:center;gap:10px;background:rgba(var(--c),.16);border:1px solid rgba(var(--c),.4);border-right:5px solid rgb(var(--c));border-radius:12px;padding:10px 14px;margin:0 0 12px;font-size:15px;font-weight:900}
+.serv-act-banner small{display:block;font-size:11px;font-weight:600;color:var(--text-dim)}
+.serv-act-banner .big{font-size:24px;line-height:1}
+[data-actc] .serv-att-check.checked,#tab-monitor [data-actc] .serv-att-check.checked{background:rgb(var(--c));border-color:rgb(var(--c));box-shadow:0 0 12px rgba(var(--c),.45)}
 </style>
 </head>
 <body>
@@ -878,8 +889,9 @@ body{background:var(--bg)}
       </div>
 
       <!-- حضور الخادمات في الأنشطة -->
-      <div id="monitor-subtab-attendance">
+      <div id="monitor-subtab-attendance" data-actc="mass">
         <div class="mon-date-row"><span class="mon-date-lbl">📅 التاريخ</span><input type="date" id="serv-att-date" class="field-input" onchange="renderServAttList()"></div>
+        <div id="serv-att-banner" class="serv-act-banner"></div>
         <div id="serv-att-list"></div>
       </div>
 
@@ -920,17 +932,18 @@ body{background:var(--bg)}
         </div>
         <div id="class-serv-list"></div>
       </div>
-      <div id="class-serv-sub-att" style="display:none">
+      <div id="class-serv-sub-att" style="display:none" data-actc="mass">
       <div class="tabs" id="class-serv-att-activity-chips" style="margin-bottom:12px">
-        <button class="tab active" onclick="setClassServAttActivity('mass',this)">⛪ القداس</button>
-        <button class="tab" onclick="setClassServAttActivity('sunday_school',this)">📖 مدارس الأحد</button>
-        <button class="tab" onclick="setClassServAttActivity('meeting',this)">🤝 اجتماع الخادمات</button>
-        <button class="tab" onclick="setClassServAttActivity('preparation',this)">📝 التحضير</button>
+        <button class="tab active" data-act="mass" onclick="setClassServAttActivity('mass',this)">⛪ القداس</button>
+        <button class="tab" data-act="sunday_school" onclick="setClassServAttActivity('sunday_school',this)">📖 مدارس الأحد</button>
+        <button class="tab" data-act="meeting" onclick="setClassServAttActivity('meeting',this)">🤝 اجتماع الخادمات</button>
+        <button class="tab" data-act="preparation" onclick="setClassServAttActivity('preparation',this)">📝 التحضير</button>
       </div>
       <input type="date" id="class-serv-att-date" class="field-input" onchange="renderClassServAttList()">
       <div class="search-box" style="margin:10px 0">
         <input type="text" id="class-serv-att-search-input" placeholder="🔍 ابحث عن خادمة بالاسم…" oninput="renderClassServAttList()" autocomplete="off">
       </div>
+      <div id="class-serv-att-banner" class="serv-act-banner"></div>
       <div id="class-serv-att-list"></div>
       </div>
     </div>
@@ -4898,6 +4911,13 @@ window.loadMonitorTab = async () => {
 let servAttActivity = 'mass'; // 'mass' | 'sunday_school' | 'meeting' | 'preparation'
 const SERV_ATT_LABELS = { mass:'القداس', sunday_school:'مدارس الأحد', meeting:'اجتماع الخادمات', preparation:'التحضير' };
 const SERV_ATT_EMOJI = { mass:'⛪', sunday_school:'📖', meeting:'🤝', preparation:'📝' };
+function updateServActBanner(wrapId, bannerId, act, dateKey) {
+  const w = document.getElementById(wrapId); if (w) w.dataset.actc = act;
+  const b = document.getElementById(bannerId); if (!b) return;
+  let d = '';
+  try { d = new Date((dateKey || toLocalDateKey(new Date())) + 'T00:00:00').toLocaleDateString('ar-EG', { weekday:'long', day:'numeric', month:'long' }); } catch (e) {}
+  b.innerHTML = `<span class="big">${SERV_ATT_EMOJI[act]}</span><div>بتسجّلي حضور: ${SERV_ATT_LABELS[act]}<small>${d}</small></div>`;
+}
 let monitorClassFilter = 'all';
 function monitorFilterServants(list) {
   if (monitorClassFilter === 'all') return list;
@@ -4970,6 +4990,7 @@ async function renderServAttList() {
   const cont = document.getElementById('serv-att-list');
   if (!cont) return;
   const date = document.getElementById('serv-att-date')?.value || toLocalDateKey(new Date());
+  updateServActBanner('monitor-subtab-attendance', 'serv-att-banner', servAttActivity, date);
   if (!servantsLoadedFlag) await loadServantsOnce();
   let servants = monitorFilterServants(cachedServants.filter(s => s.status === 'approved')).sort((a,b) => (a.name||'').localeCompare(b.name||'','ar'));
   const classBase = servants;
@@ -5107,6 +5128,7 @@ async function renderClassServAttList() {
   const dateEl = document.getElementById('class-serv-att-date');
   if (dateEl && !dateEl.value) dateEl.value = toLocalDateKey(new Date());
   const date = dateEl?.value || toLocalDateKey(new Date());
+  updateServActBanner('class-serv-sub-att', 'class-serv-att-banner', classServAttActivity, date);
   const allMode = classServScope === 'all';
   // المسؤول بيشوف بس الفصول اللي هو مسؤول عنها: "خادمات الفصل" = الفصل اللي واقف عليه، و"خادمات الفصول" = كل فصوله
   const supervised = normalizeAssignedClasses(currentSupervisorClass);
