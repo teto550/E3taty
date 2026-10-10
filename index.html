@@ -957,7 +957,10 @@ body{background:var(--bg)}
           <div class="search-box" style="margin-bottom:10px">
             <input type="text" id="roles-search" placeholder="🔍 ابحث عن دور أو اسم…" oninput="renderRolesList()" autocomplete="off">
           </div>
-          <button class="btn-primary" onclick="openRoleEditor('')" style="margin-bottom:14px">➕ دور جديد</button>
+          <div style="display:flex;gap:8px;margin-bottom:14px">
+            <button class="btn-primary" onclick="openRoleEditor('')" style="flex:1;margin:0">➕ دور جديد</button>
+            <button class="btn-primary" onclick="openServantsImportModal()" style="flex:1;margin:0;background:var(--surface2);color:var(--text);border:1px solid var(--border)">📥 رفع شيت خادمات</button>
+          </div>
           <div id="roles-cards"><div class="loading"><div class="spinner"></div>جاري التحميل…</div></div>
         </div>
 
@@ -1020,6 +1023,23 @@ body{background:var(--bg)}
           <button id="role-delete-btn" onclick="deleteRoleConfirm()" style="display:none;background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.25);border-radius:var(--radius-sm);color:var(--danger);font-family:Cairo,sans-serif;font-size:14px;font-weight:700;padding:12px 16px;cursor:pointer">🗑 حذف</button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<div id="sv-import-modal" class="modal-overlay" style="display:none;z-index:360" onclick="if(event.target.id==='sv-import-modal')closeServantsImportModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:16px;font-weight:900">📥 رفع شيت خادمات</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:2px">عنوان كل عمود = اسم الفصل، وتحته أسماء الخادمات</div>
+      </div>
+      <button class="modal-close" onclick="closeServantsImportModal()">✕</button>
+    </div>
+    <div style="padding:18px">
+      <input type="file" id="sv-import-file" class="field-input" accept=".xlsx,.xls,.csv" onchange="handleServantsImportFile(event)">
+      <div id="sv-import-preview" style="font-size:13px;line-height:1.9;margin:6px 0 14px"></div>
+      <button class="btn-primary" id="sv-import-confirm-btn" onclick="confirmServantsImport()" style="display:none">✓ استيراد</button>
     </div>
   </div>
 </div>
@@ -6092,6 +6112,87 @@ function renderRolesList() {
   const sa = document.getElementById('people-selall-btn');
   if (sa) sa.textContent = (peopleView.length && peopleView.every(p => peopleSel.has(p.key))) ? 'إلغاء التحديد' : 'تحديد الكل';
 }
+
+// ===== رفع شيت خادمات: كل عمود = فصل، وأسماء الخادمات بتتضاف لدور "خادمة فصل" بتاعه (وبيلاقوا اسمهم وقت التسجيل) =====
+let svImportPlan = [];
+const svCanon = v => String(v == null ? '' : v).replace(/[\u0640\u064B-\u065F]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه')
+  .replace(/ثانيه/g,'تانيه').replace(/ثالثه/g,'تالته').replace(/\s+/g,' ').trim();
+window.openServantsImportModal = () => {
+  document.getElementById('sv-import-file').value = '';
+  document.getElementById('sv-import-preview').innerHTML = '';
+  document.getElementById('sv-import-confirm-btn').style.display = 'none';
+  svImportPlan = [];
+  document.getElementById('sv-import-modal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+};
+window.closeServantsImportModal = () => {
+  document.getElementById('sv-import-modal').style.display = 'none';
+  document.body.style.overflow = '';
+};
+window.handleServantsImportFile = async (e) => {
+  const f = e.target.files && e.target.files[0];
+  const box = document.getElementById('sv-import-preview'), btn = document.getElementById('sv-import-confirm-btn');
+  btn.style.display = 'none'; svImportPlan = [];
+  if (!f) return;
+  try {
+    await ensureAllClassesForAdmin();
+    if (!servantsLoadedFlag) await loadServantsOnce();
+    if (!rolesLoadedFlag) await loadRolesOnce();
+    const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: null, raw: true });
+    // صف العناوين = أول صف فيه اسم فصل واحد على الأقل (ممكن يبقى فيه صفوف فاضية فوقه)
+    const hi = Math.max(0, aoa.findIndex(r => (r || []).some(h => h != null && allClasses.some(c => svCanon(c.name) === svCanon(h)))));
+    const head = aoa[hi] || [];
+    const regKeys = new Set(cachedServants.map(x => nameKey(x.name)));
+    const lines = []; let unmatched = [];
+    head.forEach((h, ci) => {
+      if (h == null || String(h).trim() === '') return;
+      const cls = allClasses.find(c => svCanon(c.name) === svCanon(h));
+      if (!cls) { unmatched.push(String(h).trim()); return; }
+      const have = new Set(allRoles.filter(r => !r.isAdmin && (r.classes || []).includes(cls.id)).flatMap(r => r.pendingNames || []).map(nameKey));
+      const seen = new Set(); const fresh = []; let skipped = 0;
+      aoa.slice(hi + 1).forEach(r => {
+        const n = String((r || [])[ci] == null ? '' : r[ci]).replace(/\s+/g, ' ').trim();
+        if (!n) return;
+        const k = nameKey(n);
+        if (seen.has(k)) return; seen.add(k);
+        if (regKeys.has(k) || have.has(k)) { skipped++; return; }
+        fresh.push(n);
+      });
+      lines.push({ cls, fresh, skipped });
+    });
+    svImportPlan = lines.filter(l => l.fresh.length);
+    box.innerHTML = lines.map(l => `${l.cls.emoji || '📘'} <b>${escH(l.cls.name)}</b>: ${l.fresh.length} جديد${l.skipped ? ` (${l.skipped} موجودين قبل كده)` : ''}`).join('<br>')
+      + (unmatched.length ? `<br>⚠️ أعمدة مش مطابقة لأي فصل (اتتجاهلت): ${escH(unmatched.join('، '))}` : '')
+      + (!lines.length ? 'مفيش أعمدة بأسماء فصول في الصف الأول' : '');
+    if (svImportPlan.length) btn.style.display = 'block';
+  } catch (err) {
+    console.error(err);
+    box.innerHTML = '<span style="color:var(--danger)">مقدرتش أقرأ الملف — اتأكد إنه Excel سليم</span>';
+  }
+};
+window.confirmServantsImport = async () => {
+  if (!svImportPlan.length || currentRole !== 'admin') return;
+  const btn = document.getElementById('sv-import-confirm-btn');
+  btn.disabled = true; btn.textContent = 'جاري الاستيراد…';
+  try {
+    let total = 0;
+    for (const { cls, fresh } of svImportPlan) {
+      const role = allRoles.find(r => !r.isAdmin && !r.isSupervisor && (r.classes || []).length === 1 && r.classes[0] === cls.id);
+      if (role) await updateDoc(doc(db,'roles',role.id), { pendingNames: arrayUnion(...fresh) });
+      else await addDoc(collection(db,'roles'), { name: `${ROLE_TYPE_SHORT.classServant} — ${cls.name}`, type: 'classServant', isAdmin: false, isSupervisor: false, classes: [cls.id], pendingNames: fresh });
+      total += fresh.length;
+    }
+    svImportPlan = [];
+    closeServantsImportModal();
+    await loadRolesOnce(true);
+    showToast(`تم رفع ${total} خادمة ✓`, 'success');
+    logActivity('رفع شيت خادمات', `${total} اسم`);
+  } catch (err) {
+    console.error(err);
+    showToast('حصل خطأ أثناء الرفع', 'error');
+  } finally { btn.disabled = false; btn.textContent = '✓ استيراد'; }
+};
 
 window.openRoleEditor = (roleId) => {
   editingRoleId = roleId || '';
