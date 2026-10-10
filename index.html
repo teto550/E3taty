@@ -915,7 +915,7 @@ body{background:var(--bg)}
       </div>
     </div>
 
-    <!-- CLASS SERVANTS TAB (مسؤول الفصل بس) — حضور خادمات فصله هو بس -->
+    <!-- CLASS SERVANTS TAB (مسؤولة الفصل بس) — حضور خادمات فصله هو بس -->
     <div id="tab-classservants" style="display:none">
       <div class="page-title-box cs-scope-title" id="class-serv-scope-title"></div>
       <div class="tabs" id="class-serv-subtabs" style="margin-bottom:12px">
@@ -954,19 +954,19 @@ body{background:var(--bg)}
         <button class="action-btn" onclick="closeRolesModal()" style="flex:0 0 auto">→ رجوع</button>
         <div style="flex:1;min-width:0">
           <div id="roles-modal-title" style="font-size:18px;font-weight:900">المستخدمين والأدوار</div>
-          <div id="roles-modal-sub" style="font-size:12px;color:var(--text-dim);margin-top:2px">أي خادمة متوزع على فصل بيبقى "خادمة فصل" فيه تلقائي — الدور هنا لترقيته لمسؤول فصل أو أدمن</div>
+          <div id="roles-modal-sub" style="font-size:12px;color:var(--text-dim);margin-top:2px">أي خادمة متوزع على فصل بيبقى "خادمة فصل" فيه تلقائي — الدور هنا لترقيته لمسؤولة فصل أو أدمن</div>
         </div>
       </div>
 
       <!-- LIST VIEW -->
       <div id="roles-list-view">
         <div class="roles-seg">
-          <button id="roles-seg-roles" class="active" onclick="setRolesPane('roles')">الأدوار</button>
-          <button id="roles-seg-people" onclick="setRolesPane('people')">الأشخاص</button>
+          <button id="roles-seg-people" class="active" onclick="setRolesPane('people')">الأشخاص</button>
+          <button id="roles-seg-roles" onclick="setRolesPane('roles')">الأدوار</button>
         </div>
 
         <!-- الأدوار -->
-        <div id="roles-pane-roles">
+        <div id="roles-pane-roles" style="display:none">
           <div class="search-box" style="margin-bottom:10px">
             <input type="text" id="roles-search" placeholder="🔍 ابحث عن دور أو اسم…" oninput="renderRolesList()" autocomplete="off">
           </div>
@@ -978,7 +978,7 @@ body{background:var(--bg)}
         </div>
 
         <!-- الأشخاص -->
-        <div id="roles-pane-people" style="display:none">
+        <div id="roles-pane-people">
           <div class="search-box" style="margin-bottom:10px">
             <input type="text" id="people-search" placeholder="🔍 ابحث عن خادمة بالاسم…" oninput="renderRolesList()" autocomplete="off">
           </div>
@@ -1729,10 +1729,10 @@ function tsToMillis(ts) {
 }
 let todayAttendanceUnsub = null; // بث لحظي لحضور النهارده — يخلي كل خادمة يشوف تحديثات الخادمة التاني فوراً
 let currentUid = null, currentName = '', currentRole = 'servant', currentEmail = '';
-let currentSupervisorClass = ''; // الفصول اللي الخادمة مسؤول عنها (ممكن تبقى جزء من فصوله)
+let currentSupervisorClass = ''; // الفصول اللي الخادمة مسؤولة عنها (ممكن تبقى جزء من فصوله)
 let currentAssignedClass = ''; // 'a' | 'b' | 'kg' | 'a,b' | '' — الفصول اللي الأدمن حدده للخادمة من تبويب "متابعة" (فاضي = مقيدش، بيشوف كل الفصول)
 let classPicked = false;      // الخادمة اللي في أكتر من فصل بيختار فصله مرة أول ما يفتح البرنامج
-let classServScope = 'class'; // 'class' = خادمات الفصل الحالي بس | 'all' = خادمات كل الفصول اللي المسؤول مسؤول عنها
+let classServScope = 'class'; // 'class' = خادمات الفصل الحالي بس | 'all' = خادمات كل الفصول اللي المسؤول مسؤولة عنها
 let currentPhone = '', currentAddress = ''; // بيانات ملفي الشخصي (شاشة الإعدادات)
 let heartbeatTimer = null;
 
@@ -1829,11 +1829,11 @@ const CLASS_PALETTE = [
   {bg:'rgba(230,126,34,0.12)',  border:'rgba(230,126,34,0.3)',  text:'#e67e22'},
   {bg:'rgba(52,152,219,0.12)',  border:'rgba(52,152,219,0.3)',  text:'#3498db'},
 ];
-// ===== خادمة ممكن يبقى مسؤول فصل في فصل وخادمة عادي في فصل تاني =====
-// الخادمة بقى ممكن يبقى في أكتر من دور (roleIds) — صلاحياته بتتحسب من كل أدواره: assignedClass = كل فصوله، supervisorClass = الفصول اللي هو مسؤول عنها بس
+// ===== خادمة ممكن يبقى مسؤولة فصل في فصل وخادمة عادي في فصل تاني =====
+// الخادمة بقى ممكن يبقى في أكتر من دور (roleIds) — صلاحياته بتتحسب من كل أدواره: assignedClass = كل فصوله، supervisorClass = الفصول اللي هو مسؤولة عنها بس
 function servantRoleIds(s) { return Array.isArray(s.roleIds) ? s.roleIds.filter(Boolean) : (s.roleId ? [s.roleId] : []); }
 function servantInRole(s, roleId) { return servantRoleIds(s).includes(roleId); }
-// مسؤول قديم (من غير supervisorClass) بيتحسب مسؤول عن كل فصوله زي الأول
+// مسؤول قديم (من غير supervisorClass) بيتحسب مسؤولة عن كل فصوله زي الأول
 function supervisedClassesOf(s) {
   if (!s || s.role !== 'supervisor') return [];
   return s.supervisorClass !== undefined ? normalizeAssignedClasses(s.supervisorClass) : normalizeAssignedClasses(s.assignedClass);
@@ -1872,7 +1872,7 @@ function permsAfterRoleChange(sv, newIds, rolesNow, removedRole) {
   if (removedRole) {
     if (list.length) return derivePermsFromRoles(list);
     if (removedRole.isSupervisor) {
-      // اتشال من دور مسؤول فصل وملوش أدوار تانية: بنسحب المسؤولية بس، وبيفضل خادمة في نفس فصوله
+      // اتشال من دور مسؤولة فصل وملوش أدوار تانية: بنسحب المسؤولية بس، وبيفضل خادمة في نفس فصوله
       const gone = new Set(removedRole.classes || []);
       const sup = oldSup.filter(c => !gone.has(c));
       return { role: sup.length ? 'supervisor' : 'servant', assignedClass: unchanged.assignedClass, supervisorClass: sup.join(',') };
@@ -1997,7 +1997,7 @@ function isBabyKgClass(c) {
   return /^بيبي( كلاس)? ?[12]$/.test(n) || /^كي ?جي ?1$/.test(n);
 }
 function babyKgClasses() { return allClasses.filter(isBabyKgClass); }
-// أي فصل غير التلات فصول دول مسؤول عن مخدومين فصله بس — ميوصلش لمخدومين بيبي كلاس 1/2 وكي جي 1 ولا للي لسه متقسمش
+// أي فصل غير التلات فصول دول مسؤولة عن مخدومين فصله بس — ميوصلش لمخدومين بيبي كلاس 1/2 وكي جي 1 ولا للي لسه متقسمش
 function classScopeActive() {
   if (!currentClassTab || !classById(currentClassTab)) return false;
   return !babyKgClasses().some(c => c.id === currentClassTab);
@@ -2456,7 +2456,7 @@ window.doRegister = async () => {
   if (!email||!pass){ err.textContent = 'اكتب الإيميل وكلمة المرور'; err.style.display = 'block'; return; }
   if (!phone)       { err.textContent = 'اكتب رقم تليفونك';       err.style.display = 'block'; return; }
   // الاسم دايمًا مختار من القايمة الجاهزة، فبندوّر على الدور اللي هو منه عشان ناخد منه كل فصوله ونوعه بالظبط
-  // نفس الاسم ممكن يبقى مضاف في أكتر من دور (مثلاً مسؤول فصل أ + خادمة فصل ب) — بنجمع كل أدواره ونحسب صلاحياته منها
+  // نفس الاسم ممكن يبقى مضاف في أكتر من دور (مثلاً مسؤولة فصل أ + خادمة فصل ب) — بنجمع كل أدواره ونحسب صلاحياته منها
   const nameRoles = allRoles.filter(r => !r.isAdmin && Array.isArray(r.classes) && nameVariantsIn(r, name).length);
   const matchedRoles = nameRoles.some(r => r.classes.includes(regClass)) ? nameRoles : [];
   const matchedPerms = matchedRoles.length ? derivePermsFromRoles(matchedRoles) : { role:'servant', assignedClass: regClass, supervisorClass: '' };
@@ -2586,7 +2586,7 @@ async function handleSignedInUser(user) {
     explicitAuthAction = false;
     const data = snap.data();
     if (data.status === 'pending') {
-      showPendingScreen('في انتظار الموافقة', 'طلبك اتبعت للأدمن ومسؤول فصلك وقيد المراجعة، هيتفعل حسابك بمجرد الموافقة ✋');
+      showPendingScreen('في انتظار الموافقة', 'طلبك اتبعت للأدمن ومسؤولة فصلك وقيد المراجعة، هيتفعل حسابك بمجرد الموافقة ✋');
       watchOwnPendingStatus(user);
       return;
     }
@@ -4474,12 +4474,12 @@ function buildStudentsSheet() {
   return ws;
 }
 
-// ===== تصدير الخادمات (للأدمن ومسؤول الفصل) =====
+// ===== تصدير الخادمات (للأدمن ومسؤولة الفصل) =====
 let exportServSelected = new Set(); // الفصول المتحددة لتصدير الخادمات
 function canExportServants() {
   return currentRole === 'admin' || (currentRole === 'supervisor' && normalizeAssignedClasses(currentSupervisorClass).length > 0);
 }
-// الفصول اللي يقدر يصدّر خادماتها: الأدمن كل الفصول، ومسؤول الفصل فصوله اللي مسؤول عنها بس
+// الفصول اللي يقدر يصدّر خادماتها: الأدمن كل الفصول، ومسؤولة الفصل فصوله اللي مسؤولة عنها بس
 function exportServClassChoices() {
   if (currentRole === 'admin') return allClasses;
   const sup = normalizeAssignedClasses(currentSupervisorClass);
@@ -4498,7 +4498,7 @@ function renderExportServScope() {
   cw.style.display = 'block';
   document.getElementById('export-serv-classes').innerHTML = exportClassChipsHTML('servants', exportServSelected, choices);
 }
-// الخادمات اللي هيتصدّروا: الأدمن + كل الفصول = كل المعتمدين، غير كده الخادمات المتوزعين على الفصل/الفصول المختارة (ومسؤول الفصل من غير نفسه)
+// الخادمات اللي هيتصدّروا: الأدمن + كل الفصول = كل المعتمدين، غير كده الخادمات المتوزعين على الفصل/الفصول المختارة (ومسؤولة الفصل من غير نفسه)
 function exportTargetServants() {
   let list = cachedServants.filter(x => x.status === 'approved');
   if (currentRole !== 'admin') list = list.filter(x => x.id !== currentUid);
@@ -4531,8 +4531,8 @@ function styleSimpleSheet(ws, ncols, nrows, wch) {
   return ws;
 }
 function buildServantsDataSheet(massCounts = {}) {
-  const roleLabel = x => x.role === 'admin' ? 'أدمن' : (x.role === 'supervisor' ? 'مسؤول فصل' : 'خادمة');
-  const head = ['الاسم','التليفون','الإيميل','العنوان','الدور','الفصول','مسؤول عن','قداس (عدد)','مدارس أحد (عدد)','اجتماع خادمات (عدد)','تحضير (عدد)'];
+  const roleLabel = x => x.role === 'admin' ? 'أدمن' : (x.role === 'supervisor' ? 'مسؤولة فصل' : 'خادمة');
+  const head = ['الاسم','التليفون','الإيميل','العنوان','الدور','الفصول','مسؤولة عن','قداس (عدد)','مدارس أحد (عدد)','اجتماع خادمات (عدد)','تحضير (عدد)'];
   const rows = exportTargetServants().map(x => [
     x.name || '', x.phone || '', x.email || '', x.address || '', roleLabel(x),
     normalizeAssignedClasses(x.assignedClass).map(classLabel).join('، '),
@@ -4640,7 +4640,7 @@ window.applyMonitorVisibility = () => {
   // المسؤول بيدخل الخادمات من الرئيسية (كارت "الخادمات")، مش من جوه الفصل
   document.getElementById('tab-btn-classservants').style.display = 'none';
   const c2 = document.getElementById('home-card-classservants'); if (c2) c2.style.display = 'none';
-  // "خادمات الفصول": بيظهر للمسؤول اللي مسؤول عن أكتر من فصل، عشان يشوف خادمات كل فصوله مع بعض
+  // "خادمات الفصول": بيظهر للمسؤول اللي مسؤولة عن أكتر من فصل، عشان يشوف خادمات كل فصوله مع بعض
   const tb2 = document.getElementById('tab-btn-allclassservants'); if (tb2) tb2.style.display = 'none';
   const c3 = document.getElementById('home-card-allclassservants'); if (c3) c3.style.display = 'none';
 };
@@ -4721,7 +4721,7 @@ window.goHome = () => {
   applyMonitorVisibility();
 };
 // الخادمة المتوزع على أكتر من فصل (مش أدمن) لازم يختار الفصل اللي داخله الأول
-// المسؤول عن فصل (أو أكتر) بيبقى عنده رئيسية فيها "الفصول" و"الخادمات" زي الأدمن
+// المسؤولة عن فصل (أو أكتر) بيبقى عنده رئيسية فيها "الفصول" و"الخادمات" زي الأدمن
 function hasSupHome() { return currentRole === 'supervisor' && normalizeAssignedClasses(currentSupervisorClass).length > 0; }
 window.supOpenClasses = () => { if (needsClassPick()) showClassPicker(); else showClassHome(); };
 function needsClassPick() { return currentRole !== 'admin' && getAllowedAssignedClasses().length > 1; }
@@ -4973,7 +4973,7 @@ function servantRoleChip(s) {
   if (s.role === 'supervisor') {
     const sup = supervisedClassesOf(s), all = normalizeAssignedClasses(s.assignedClass);
     const mixed = sup.length && all.some(c => !sup.includes(c));
-    return `<span class="mon-role sup">🗝️ مسؤول فصل${mixed ? ' (' + sup.map(classLabel).join(' + ') + ')' : ''}</span>`;
+    return `<span class="mon-role sup">🗝️ مسؤولة فصل${mixed ? ' (' + sup.map(classLabel).join(' + ') + ')' : ''}</span>`;
   }
   return '';
 }
@@ -5046,7 +5046,7 @@ window.toggleServantAttendance = async (servantId, name, date) => {
   } catch(e) { console.error(e); showToast('حصل خطأ، حاول تاني', 'error'); }
 };
 
-// ===== خادمات الفصل (تبويب مسؤول الفصل) — نسخة من حضور الخادمات، مقصورة على خادمات فصل المسؤول بس =====
+// ===== خادمات الفصل (تبويب مسؤولة الفصل) — نسخة من حضور الخادمات، مقصورة على خادمات فصل المسؤول بس =====
 // عرض التاريخ بصيغة عربي مقروءة بدل خانة التاريخ الأصلية (اللي كانت بتظهر كلام مقلوب زي "موي/رهش/ةنس")
 // الـinput الأصلي بيفضل موجود فوق الشكل بشفافية كاملة، فالضغط عليه بيفتح منتقي التاريخ عادي
 function enhanceDateInput(inp) {
@@ -5081,7 +5081,7 @@ window.setClassServAttActivity = (activity, btn) => {
   if (btn) btn.classList.add('active');
   renderClassServAttList();
 };
-// ===== شاشة "الخادمات" عند مسؤول الفصل: تبويب "الخادمات" (بيفتح الأول) + تبويب "الحضور" =====
+// ===== شاشة "الخادمات" عند مسؤولة الفصل: تبويب "الخادمات" (بيفتح الأول) + تبويب "الحضور" =====
 window.switchClassServSub = (which) => {
   document.getElementById('class-serv-subtab-btn-servants')?.classList.toggle('active', which === 'servants');
   document.getElementById('class-serv-subtab-btn-att')?.classList.toggle('active', which === 'att');
@@ -5089,14 +5089,14 @@ window.switchClassServSub = (which) => {
   const b = document.getElementById('class-serv-sub-att');      if (b) b.style.display = which === 'att' ? 'block' : 'none';
   if (which === 'servants') renderClassServList(); else renderClassServAttList();
 };
-// قايمة الخادمات اللي المسؤول مسؤول عنهم بس (فصوله)، متجمعة بالفصل لو عنده أكتر من فصل — عرض فقط من غير أزرار إدارة
+// قايمة الخادمات اللي المسؤول مسؤولة عنهم بس (فصوله)، متجمعة بالفصل لو عنده أكتر من فصل — عرض فقط من غير أزرار إدارة
 function renderClassServList() {
   const cont = document.getElementById('class-serv-list');
   if (!cont || currentRole !== 'supervisor') return;
   const esc = t => String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
   const titleEl = document.getElementById('class-serv-scope-title'); if (titleEl) titleEl.textContent = '🏫 خادمات الفصول';
   const supervised = normalizeAssignedClasses(currentSupervisorClass);
-  if (!supervised.length) { cont.innerHTML = `<div class="empty-state">إنت مش مسؤول عن أي فصل</div>`; return; }
+  if (!supervised.length) { cont.innerHTML = `<div class="empty-state">إنت مش مسؤولة عن أي فصل</div>`; return; }
   if (!servantsLoadedFlag) { cont.innerHTML = `<div class="loading"><div class="spinner"></div>جاري التحميل…</div>`; return; }
   const q = normalizeArabic(document.getElementById('class-serv-list-search')?.value || '');
   const base = cachedServants.filter(x => x.status === 'approved' && x.id !== currentUid);
@@ -5130,13 +5130,13 @@ async function renderClassServAttList() {
   const date = dateEl?.value || toLocalDateKey(new Date());
   updateServActBanner('class-serv-sub-att', 'class-serv-att-banner', classServAttActivity, date);
   const allMode = classServScope === 'all';
-  // المسؤول بيشوف بس الفصول اللي هو مسؤول عنها: "خادمات الفصل" = الفصل اللي واقف عليه، و"خادمات الفصول" = كل فصوله
+  // المسؤول بيشوف بس الفصول اللي هو مسؤولة عنها: "خادمات الفصل" = الفصل اللي واقف عليه، و"خادمات الفصول" = كل فصوله
   const supervised = normalizeAssignedClasses(currentSupervisorClass);
   const scopeClasses = allMode ? supervised : (supervised.includes(currentClassTab) ? [currentClassTab] : []);
   const titleEl = document.getElementById('class-serv-scope-title');
   if (titleEl) titleEl.textContent = allMode ? '🏫 خادمات الفصول' : `${classEmoji(currentClassTab)} خادمات ${classLabel(currentClassTab)}`;
   if (!servantsLoadedFlag) await loadServantsOnce();
-  if (!scopeClasses.length) { cont.innerHTML = `<div class="empty-state">إنت مش مسؤول عن ${esc(classLabel(currentClassTab))} — اختار فصل إنت مسؤول عنه من فوق</div>`; return; }
+  if (!scopeClasses.length) { cont.innerHTML = `<div class="empty-state">إنت مش مسؤولة عن ${esc(classLabel(currentClassTab))} — اختار فصل إنت مسؤولة عنه من فوق</div>`; return; }
   const searchQ = normalizeArabic(document.getElementById('class-serv-att-search-input')?.value || '');
   const base = cachedServants.filter(s => s.status === 'approved' && s.id !== currentUid);
   const groups = scopeClasses.map(cid => ({
@@ -5259,7 +5259,7 @@ function startPendingRequestsListener() {
   }, err => console.error('pending requests listener error:', err));
 }
 
-// مين يقدر يقبل/يرفض طلبات الانضمام: الأدمن (كل الطلبات) + مسؤول الفصل (طلبات الفصول اللي هو مسؤول عنها بس)
+// مين يقدر يقبل/يرفض طلبات الانضمام: الأدمن (كل الطلبات) + مسؤولة الفصل (طلبات الفصول اللي هو مسؤولة عنها بس)
 function canHandleRequests() { return currentRole === 'admin' || (currentRole === 'supervisor' && normalizeAssignedClasses(currentSupervisorClass).length > 0); }
 function canHandleRequest(s) {
   if (currentRole === 'admin') return true;
@@ -5327,7 +5327,7 @@ function renderServantsList(list) {
       <div class="servant-item mon-row" style="opacity:.85" onclick="openPendingProfile(decodeURIComponent('${pEnc(x.name)}'))">
         <div class="mon-avatar" style="background:${pal.bg};color:${pal.text}">${(x.name||'؟').trim()[0]||'؟'}</div>
         <div class="s-info">
-          <div class="mon-name">${dEsc(x.name)}${isSup ? '<span class="mon-role sup">🗝️ مسؤول فصل</span>' : ''}<span class="mon-role" style="background:rgba(255,255,255,0.06);color:var(--text-dim);border:1px solid var(--border)">⏳ لسه مسجلش</span></div>
+          <div class="mon-name">${dEsc(x.name)}${isSup ? '<span class="mon-role sup">🗝️ مسؤولة فصل</span>' : ''}<span class="mon-role" style="background:rgba(255,255,255,0.06);color:var(--text-dim);border:1px solid var(--border)">⏳ لسه مسجلش</span></div>
           <div class="mon-badges">${x.classes.map(cid => classBadgeHTML(cid)).join('')}</div>
         </div>
       </div>`;
@@ -5376,7 +5376,7 @@ function renderServantProfileClassChips(s) {
     const btns = canEdit ? `
       <button class="action-btn" onclick="setServantClassRole('${s.id}','${cid}',${!isSup})">${isSup ? '🧑‍🏫 خليه خادمة' : '🗝️ خليه مسؤول'}</button>
       <button class="action-btn" onclick="openServantClassPicker('${s.id}','${cid}')">🔁 فصل تاني</button>` : '';
-    return `<span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${classBadgeHTML(cid)}<span style="font-size:11px;color:var(--text-dim)">${isSup ? '🗝️ مسؤول فصل' : '🧑‍🏫 خادمة فصل'}</span>${btns}</span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${classBadgeHTML(cid)}<span style="font-size:11px;color:var(--text-dim)">${isSup ? '🗝️ مسؤولة فصل' : '🧑‍🏫 خادمة فصل'}</span>${btns}</span>`;
   }).join('') + (canEdit && free.length ? `<button class="action-btn" onclick="openServantClassPicker('${s.id}','')">➕ ضيف فصل</button>` : '');
 }
 
@@ -5417,7 +5417,7 @@ function servantEditable(sid) {
 // تغيير دور خادمة واحد في فصل واحد (خادمة ⇄ مسؤول)
 window.setServantClassRole = async (sid, cid, toSupervisor) => {
   const sv = servantEditable(sid); if (!sv) return;
-  if (!confirm(`تخلي "${sv.name||''}" ${toSupervisor ? 'مسؤول فصل' : 'خادمة عادي'} في ${classLabel(cid)} بس؟ باقي الخادمات مش هيتأثروا`)) return;
+  if (!confirm(`تخلي "${sv.name||''}" ${toSupervisor ? 'مسؤولة فصل' : 'خادمة عادي'} في ${classLabel(cid)} بس؟ باقي الخادمات مش هيتأثروا`)) return;
   try {
     const classes = normalizeAssignedClasses(sv.assignedClass);
     const sup = new Set(supervisedClassesOf(sv));
@@ -5496,7 +5496,7 @@ window.openServantProfile = (id) => {
   document.getElementById('sprof-stats').style.display = '';
   document.getElementById('sprof-avatar').textContent = (s.name||'؟').trim()[0] || '؟';
   document.getElementById('sprof-name').textContent = (s.name||'—') + (s.role==='admin' ? ' 👑' : (s.role==='supervisor' ? ' 🗝️' : ''));
-  document.getElementById('sprof-sub').textContent = s.role==='admin' ? 'أدمن' : (s.role==='supervisor' ? (supervisedClassesOf(s).length && normalizeAssignedClasses(s.assignedClass).some(c => !supervisedClassesOf(s).includes(c)) ? 'مسؤول ' + supervisedClassesOf(s).map(classLabel).join(' + ') + ' وخادمة في باقي فصوله' : 'مسؤول فصل') : 'خادمة فصل');
+  document.getElementById('sprof-sub').textContent = s.role==='admin' ? 'أدمن' : (s.role==='supervisor' ? (supervisedClassesOf(s).length && normalizeAssignedClasses(s.assignedClass).some(c => !supervisedClassesOf(s).includes(c)) ? 'مسؤول ' + supervisedClassesOf(s).map(classLabel).join(' + ') + ' وخادمة في باقي فصوله' : 'مسؤولة فصل') : 'خادمة فصل');
   document.getElementById('sprof-ssc').textContent = s.sscCount||0;
   document.getElementById('sprof-meeting').textContent = s.meetingCount||0;
   document.getElementById('sprof-prep').textContent = s.prepCount||0;
@@ -5556,7 +5556,7 @@ window.openPendingProfile = (name) => {
   const e = pEnc(name);
   document.getElementById('sprof-class-chips').innerHTML = classes.map(cid => {
     const isSup = sup.has(cid);
-    return `<span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${classBadgeHTML(cid)}<span style="font-size:11px;color:var(--text-dim)">${isSup ? '🗝️ مسؤول فصل' : '🧑‍🏫 خادمة فصل'}</span>
+    return `<span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${classBadgeHTML(cid)}<span style="font-size:11px;color:var(--text-dim)">${isSup ? '🗝️ مسؤولة فصل' : '🧑‍🏫 خادمة فصل'}</span>
       <button class="action-btn" onclick="setPendingClassRole(decodeURIComponent('${e}'),'${cid}',${!isSup})">${isSup ? '🧑‍🏫 خليه خادمة' : '🗝️ خليه مسؤول'}</button>
       <button class="action-btn" onclick="openPendingClassPicker(decodeURIComponent('${e}'),'${cid}')">🔁 فصل تاني</button></span>`;
   }).join('') + (allClasses.some(c => !classes.includes(c.id)) ? `<button class="action-btn" onclick="openPendingClassPicker(decodeURIComponent('${e}'),'')">➕ ضيف فصل</button>` : '');
@@ -5590,7 +5590,7 @@ async function applyPendingClassMap(name, classes, supSet) {
   await loadRolesOnce(true);
 }
 window.setPendingClassRole = async (name, cid, toSup) => {
-  if (!confirm(`تخلي "${name}" ${toSup ? 'مسؤول فصل' : 'خادمة عادي'} في ${classLabel(cid)} بس؟ (هيتفعل أول ما يسجل)`)) return;
+  if (!confirm(`تخلي "${name}" ${toSup ? 'مسؤولة فصل' : 'خادمة عادي'} في ${classLabel(cid)} بس؟ (هيتفعل أول ما يسجل)`)) return;
   try {
     const { classes, sup } = pendingPersonMap(name);
     if (toSup) sup.add(cid); else sup.delete(cid);
@@ -5939,8 +5939,8 @@ let editingRoleType = 'classServant'; // 'classServant' | 'classSupervisor' | 'a
 let editingRoleClasses = [];   // [classId,...]
 let editingRoleMemberIds = []; // [servantId,...]
 let editingRolePendingNames = []; // أسماء خادمات لسه ملهمش حساب، هيلاقوا اسمهم وقت التسجيل ويختاروه
-const ROLE_TYPE_LABELS = { classServant:'🧑‍🏫 خادمة فصل', classSupervisor:'🗝️ مسؤول فصل', admin:'👑 أدمن' };
-const ROLE_TYPE_SHORT   = { classServant:'خادمة فصل', classSupervisor:'مسؤول فصل', admin:'أدمن' };
+const ROLE_TYPE_LABELS = { classServant:'🧑‍🏫 خادمة فصل', classSupervisor:'🗝️ مسؤولة فصل', admin:'👑 أدمن' };
+const ROLE_TYPE_SHORT   = { classServant:'خادمة فصل', classSupervisor:'مسؤولة فصل', admin:'أدمن' };
 
 window.closeRolesModal = () => {
   document.getElementById('tab-roles').style.display = 'none';
@@ -5968,7 +5968,7 @@ function showRolesListView() {
 }
 
 // ===== شاشة "المستخدمين والأدوار": تبويبين (الأدوار / الأشخاص) =====
-let rolesPane = 'roles';          // 'roles' | 'people'
+let rolesPane = 'people';          // 'roles' | 'people'
 let peopleSel = new Set();        // مفاتيح المحدّدين: 'r:<servantId>' أو 'p:<اسم لسه مسجلش>'
 let peopleRoleFilter = 'all';     // 'all' | 'admin' | 'none' | classId
 let peopleView = [];              // آخر قايمة اتعرضت (بنستخدم الـ index بتاعها في الـ onclick)
@@ -6001,10 +6001,13 @@ function renderRoleCards() {
     return;
   }
   cont.innerHTML = roles.map(r => {
-    const n = cachedServants.filter(s => servantInRole(s, r.id)).length + (r.pendingNames || []).length;
+    const memberNames = [...cachedServants.filter(s => servantInRole(s, r.id)).map(s => s.name || '—'), ...(r.pendingNames || [])].sort((a, b) => a.localeCompare(b, 'ar'));
+    const n = memberNames.length;
+    const names = memberNames.slice(0, 6).join(' ، ') + (n > 6 ? ` … +${n - 6}` : '');
     return `<button type="button" class="role-card" onclick="openRoleEditor('${r.id}')">
       <div class="role-card-top"><span class="role-card-name">${escH(r.name || 'دور')}</span><span class="role-card-count">${n} شخص</span></div>
       <div>${roleClassChipsHTML(r)}</div>
+      ${names ? `<div class="person-sub" style="margin-top:6px;font-size:12px">${escH(names)}</div>` : ''}
     </button>`;
   }).join('');
 }
@@ -6026,8 +6029,8 @@ function buildPeople() {
   return [...reg, ...pend].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
 }
 function personRolesText(p) {
-  const parts = p.roles.map(r => r.isAdmin ? '👑 أدمن' : `${r.isSupervisor ? '🗝️ مسؤول' : '🧑‍🏫 خادمة'} ${(r.classes || []).map(c => classLabel(c)).join(' + ')}`.trim());
-  if (p.admin && !p.roles.some(r => r.isAdmin)) parts.unshift('👑 أدمن');
+  const parts = p.roles.map(r => r.isAdmin ? 'أدمن' : `${r.isSupervisor ? 'مسؤولة فصل' : 'خادمة فصل'} · ${(r.classes || []).map(c => classLabel(c)).join(' + ') || 'من غير فصل'}`);
+  if (p.admin && !p.roles.some(r => r.isAdmin)) parts.unshift('أدمن');
   return parts.length ? parts.join(' ، ') : 'من غير دور';
 }
 function renderPeopleFilterChips(all) {
@@ -6055,7 +6058,7 @@ function renderPeople() {
     const tag = p.kind === 'pend' ? '⏳ لسه مسجلش' : (p.pending ? '⏳ بانتظار الموافقة' : '');
     return `<div class="person-row ${on ? 'sel' : ''}" onclick="openPersonRow(${i})">
       <input type="checkbox" ${on ? 'checked' : ''} onclick="event.stopPropagation();togglePerson(${i})">
-      <div class="s-info"><div class="s-name" style="font-size:14px">${escH(p.name)}${p.admin ? ' 👑' : ''}</div><div class="person-sub">${escH(personRolesText(p))}${tag ? ' · ' + tag : ''}</div></div>
+      <div class="s-info"><div class="s-name" style="font-size:15px;font-weight:900">${escH(p.name)}${p.admin ? ' 👑' : ''}</div><div class="person-sub">${escH(personRolesText(p))}${tag ? ' · ' + tag : ''}</div></div>
     </div>`;
   }).join('');
 }
@@ -6288,7 +6291,7 @@ function roleClassServantIds(classId) {
 window.toggleRoleClass = (classId) => {
   const wasActive = editingRoleClasses.includes(classId);
   editingRoleClasses = wasActive ? editingRoleClasses.filter(x => x !== classId) : [...editingRoleClasses, classId];
-  // الإضافة التلقائية لكل خادمات الفصل بتحصل لدور "خادمة فصل" بس — مسؤول الفصل والأدمن بيتضاف ليهم ناس بالاسم بس
+  // الإضافة التلقائية لكل خادمات الفصل بتحصل لدور "خادمة فصل" بس — مسؤولة الفصل والأدمن بيتضاف ليهم ناس بالاسم بس
   if (!editingRoleId && editingRoleType === 'classServant') {
     if (!wasActive) {
       roleClassServantIds(classId).forEach(id => {
@@ -6512,7 +6515,7 @@ window.saveRole = async () => {
 window.deleteRoleConfirm = async () => {
   if (!editingRoleId) return;
   const r = allRoles.find(x => x.id === editingRoleId);
-  if (!confirm(`هتحذف دور "${r?.name||''}"؟ الأعضاء بتوعه مش هيتحذفوا، بس هتتسحب منهم صلاحية الدور ده (مسؤول فصل / أدمن) وهيفضلوا خادمات في فصولهم`)) return;
+  if (!confirm(`هتحذف دور "${r?.name||''}"؟ الأعضاء بتوعه مش هيتحذفوا، بس هتتسحب منهم صلاحية الدور ده (مسؤولة فصل / أدمن) وهيفضلوا خادمات في فصولهم`)) return;
   try {
     const delId = editingRoleId;
     const rolesLeft = allRoles.filter(x => x.id !== delId);
