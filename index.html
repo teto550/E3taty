@@ -603,14 +603,15 @@ body{background:var(--bg)}
     <!-- STUDENTS TAB -->
     <div id="tab-students" style="display:none">
       <button id="add-student-toggle-btn" class="btn-primary" onclick="toggleAddStudentForm()" style="margin-bottom:14px">➕ إضافة مخدوم</button>
+      <button class="btn-primary" onclick="openImportModal()" style="margin-bottom:14px;background:var(--surface2);color:var(--text);border:1px solid var(--border)">📥 رفع شيت مخدومين (Excel)</button>
       <div class="add-form" id="add-student-fields" style="display:none">
         <p class="section-title" style="margin-bottom:14px">إضافة مخدوم جديد</p>
         <label class="field-label">الاسم *</label>
         <input type="text" id="new-name" class="field-input" placeholder="اسم المخدوم بالكامل" oninput="onNewNameInput()">
-        <label class="field-label">تاريخ الميلاد *</label>
+        <label class="field-label">تاريخ الميلاد <span style="font-weight:400">(اختياري)</span></label>
         <input type="date" id="new-dob" class="field-input" style="margin-bottom:14px">
-        <label class="field-label">العنوان * <span style="font-weight:400">(المنطقة / الشارع / رقم العمارة / الدور)</span></label>
-        <textarea id="new-address" class="field-input" rows="2" placeholder="اكتب العنوان بالتفصيل" style="min-height:64px;resize:vertical;font-family:Cairo,sans-serif;line-height:1.6;margin-bottom:10px"></textarea>
+        <label class="field-label">ملاحظات <span style="font-weight:400">(اختياري)</span></label>
+        <textarea id="new-address" class="field-input" rows="2" placeholder="اكتب أي ملاحظات عن المخدوم" style="min-height:64px;resize:vertical;font-family:Cairo,sans-serif;line-height:1.6;margin-bottom:10px"></textarea>
         <label class="field-label">الموقع على الخريطة <span style="font-weight:400">(اختياري)</span></label>
         <div style="display:flex;gap:8px;margin-bottom:14px">
           <input type="url" id="new-map" class="field-input" placeholder="الصق رابط جوجل ماب" dir="ltr" style="margin-bottom:0;flex:1;min-width:0">
@@ -622,6 +623,8 @@ body{background:var(--bg)}
           <option value="male">ولد</option>
           <option value="female">بنت</option>
         </select>
+        <label class="field-label">اسم الأم <span style="font-weight:400">(اختياري)</span></label>
+        <input type="text" id="new-mother-name" class="field-input" placeholder="اسم الأم" style="margin-bottom:14px">
         <label class="field-label">أرقام التليفون * <span style="font-weight:400">(لازم رقم واحد على الأقل)</span></label>
         <div class="phones-wrap">
           <input type="tel" id="new-phone-father" class="field-input" placeholder="تليفون الأب" dir="ltr" style="margin-bottom:8px">
@@ -1064,6 +1067,26 @@ body{background:var(--bg)}
 
 
 <!-- EDIT MODAL -->
+<div id="import-modal" class="modal-overlay" style="display:none" onclick="if(event.target.id==='import-modal')closeImportModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:16px;font-weight:900">📥 رفع شيت مخدومين</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:2px">الأعمدة: الاسم، الموبايل، اسم الأم، رقم الأم، ملاحظات</div>
+      </div>
+      <button class="modal-close" onclick="closeImportModal()">✕</button>
+    </div>
+    <div style="padding:18px">
+      <label class="field-label">الفصل اللي هيتضاف له المخدومين</label>
+      <select class="field-select" id="import-class" style="margin-bottom:14px"></select>
+      <label class="field-label">ملف الإكسيل (.xlsx / .xls / .csv)</label>
+      <input type="file" id="import-file" class="field-input" accept=".xlsx,.xls,.csv" onchange="handleImportFile(event)">
+      <div id="import-preview" style="font-size:13px;line-height:1.9;margin:6px 0 14px"></div>
+      <button class="btn-primary" id="import-confirm-btn" onclick="confirmImport()" style="display:none">✓ استيراد</button>
+    </div>
+  </div>
+</div>
+
 <div id="edit-modal" class="modal-overlay" style="display:none" onclick="closeEditOutside(event)">
   <div class="modal-box">
     <div class="modal-header">
@@ -1078,10 +1101,10 @@ body{background:var(--bg)}
       <input type="hidden" id="edit-id">
       <label class="field-label">الاسم *</label>
       <input type="text" id="edit-name" class="field-input" placeholder="اسم المخدوم بالكامل" oninput="onEditNameInput()">
-      <label class="field-label">تاريخ الميلاد *</label>
+      <label class="field-label">تاريخ الميلاد <span style="font-weight:400">(اختياري)</span></label>
       <input type="date" id="edit-dob" class="field-input" style="margin-bottom:14px">
-      <label class="field-label">العنوان * <span style="font-weight:400">(المنطقة / الشارع / رقم العمارة / الدور)</span></label>
-      <textarea id="edit-address" class="field-input" rows="2" placeholder="اكتب العنوان بالتفصيل" style="min-height:64px;resize:vertical;font-family:Cairo,sans-serif;line-height:1.6;margin-bottom:10px"></textarea>
+      <label class="field-label">ملاحظات <span style="font-weight:400">(اختياري)</span></label>
+      <textarea id="edit-address" class="field-input" rows="2" placeholder="اكتب أي ملاحظات عن المخدوم" style="min-height:64px;resize:vertical;font-family:Cairo,sans-serif;line-height:1.6;margin-bottom:10px"></textarea>
       <label class="field-label">الموقع على الخريطة <span style="font-weight:400">(اختياري)</span></label>
       <div style="display:flex;gap:8px;margin-bottom:14px">
         <input type="url" id="edit-map" class="field-input" placeholder="الصق رابط جوجل ماب" dir="ltr" style="margin-bottom:0;flex:1;min-width:0">
@@ -1095,6 +1118,8 @@ body{background:var(--bg)}
       </select>
       <label class="field-label">الفصل</label>
       <select class="field-select" id="edit-class"></select>
+      <label class="field-label">اسم الأم <span style="font-weight:400">(اختياري)</span></label>
+      <input type="text" id="edit-mother-name" class="field-input" placeholder="اسم الأم" style="margin-bottom:14px">
       <label class="field-label">أرقام التليفون * <span style="font-weight:400">(لازم رقم واحد على الأقل)</span></label>
       <div class="edit-phones-wrap">
         <input type="tel" id="edit-phone-father" class="field-input" placeholder="تليفون الأب" dir="ltr" style="margin-bottom:8px">
@@ -2723,8 +2748,6 @@ function readPhoneInputs(prefix) {
 // بيرجّع نص الخطأ (أو '' لو كله تمام) — الحفظ بيتمنع لو فيه أي نقص
 function validateStudentData({ name, dob, address, father, mother, student, others = [], map = '' }) {
   if (!name) return 'اكتب اسم المخدوم';
-  if (!dob) return 'لازم تكتب تاريخ الميلاد';
-  if (!address) return 'لازم تكتب العنوان';
   if (map && !/^https?:\/\//i.test(map)) return 'رابط الموقع لازم يبدأ بـ http أو https';
   for (const [lbl, v] of [['الأب', father], ['الأم', mother], ['المخدوم', student]]) {
     if (v && !PHONE_RE.test(v)) return 'رقم تليفون ' + lbl + ' مش صحيح';
@@ -2853,6 +2876,7 @@ window.addStudent = async () => {
     dob,
     address,
     addressMap,
+    motherName: document.getElementById('new-mother-name').value.trim(),
     gender:  document.getElementById('new-gender').value || '',
     ...buildPhoneFields(father, mother, student, [], null),
     createdAt: serverTimestamp(),
@@ -2862,13 +2886,144 @@ window.addStudent = async () => {
   // لو الخادم مقيد بفصول معينة، أي مخدوم جديد بيضيفه يتحط أوتوماتيك في الفصل الحالي اللى شافه في الواجهة عشان يبقى ضمن الفصول المسموح له
   if (currentRole !== 'admin' && allowed.length) data.classSection = targetClass;
   await addDoc(collection(db,'students'), data); bumpStudentsRev();
-  ['new-name','new-dob','new-address','new-map','new-gender','new-phone-father','new-phone-mother','new-phone-student']
+  ['new-name','new-dob','new-address','new-map','new-mother-name','new-gender','new-phone-father','new-phone-mother','new-phone-student']
     .forEach(id => { document.getElementById(id).value = ''; });
   newGenderManuallySet = false;
   showToast('تمت الإضافة ✓', 'success');
   await loadStudents();
   logActivity('إضافة مخدوم', name);
   toggleAddStudentForm();
+};
+
+// ===== IMPORT STUDENTS FROM EXCEL =====
+let importRows = [];
+const impNorm = v => String(v == null ? '' : v).replace(/[\u0640\u064B-\u065F]/g, '').replace(/\s+/g, ' ').trim();
+// بيحوّل رقم الإكسيل (اللي بيضيّع الصفر الأول) لرقم موبايل صحيح. بيرجّع { main, extra[] } والرقم الغلط بيتتجاهل
+function importPhones(v) {
+  if (v == null || v === '') return { main: '', extra: [], bad: false };
+  let parts = (typeof v === 'number' ? [String(Math.round(v))] : String(v).split(/[\/,،؛;\n]+/)).map(cleanPhone).filter(Boolean);
+  let bad = false;
+  parts = parts.map(p => {
+    if (/^1\d{9}$/.test(p)) p = '0' + p;          // 1xxxxxxxxx → 01xxxxxxxxx
+    if (!PHONE_RE.test(p)) { bad = true; return ''; }
+    return p;
+  }).filter(Boolean);
+  return { main: parts[0] || '', extra: parts.slice(1), bad };
+}
+window.openImportModal = async () => {
+  await ensureAllClassesForAdmin();
+  const allowed = getAllowedAssignedClasses();
+  const sel = document.getElementById('import-class');
+  sel.innerHTML = classSelectOptionsHTML(true);
+  const cands = allowed.length ? allowed : allClasses.map(c => c.id);
+  sel.value = cands.includes(currentClassTab) ? currentClassTab : (cands[0] || '');
+  if (allowed.length) [...sel.options].forEach(o => { if (o.value && !allowed.includes(o.value)) o.disabled = true; });
+  document.getElementById('import-file').value = '';
+  document.getElementById('import-preview').innerHTML = '';
+  document.getElementById('import-confirm-btn').style.display = 'none';
+  importRows = [];
+  document.getElementById('import-modal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+};
+window.closeImportModal = () => {
+  document.getElementById('import-modal').style.display = 'none';
+  document.body.style.overflow = '';
+};
+window.handleImportFile = async (e) => {
+  const f = e.target.files && e.target.files[0];
+  const box = document.getElementById('import-preview');
+  const btn = document.getElementById('import-confirm-btn');
+  btn.style.display = 'none'; importRows = [];
+  if (!f) return;
+  try {
+    await ensureStudents();
+    const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+    // لاقي صف العناوين (اللي فيه "الاسم") — وكل عمود بيتعرف من اسمه مش من مكانه
+    let hi = aoa.findIndex(r => (r || []).some(c => impNorm(c) === 'الاسم'));
+    if (hi < 0) { box.innerHTML = '<span style="color:var(--danger,#e74c3c)">مش لاقي عمود "الاسم" في الشيت</span>'; return; }
+    const col = {};
+    aoa[hi].forEach((c, i) => {
+      const h = impNorm(c);
+      if (h === 'الاسم') col.name = i;
+      else if (/^(الموبايل|موبايل|تليفون المخدوم|رقم المخدوم|تليفون)$/.test(h)) col.phone = i;
+      else if (/^(اسم الام|اسم الأم)$/.test(h)) col.mName = i;
+      else if (/^(رقم الام|رقم الأم|تليفون الام|تليفون الأم|موبايل الام|موبايل الأم)$/.test(h)) col.mPhone = i;
+      else if (h === 'ملاحظات') col.notes = i;
+    });
+    const get = (r, k) => (col[k] == null ? null : r[col[k]]);
+    const have = new Map(allStudents.map(s => [normalizeArabic(s.name), s]));
+    const seen = new Set();
+    let skippedDup = [], badPhones = 0, noPhone = 0;
+    const rows = [];
+    for (const r of aoa.slice(hi + 1)) {
+      if (!r) continue;
+      const name = canonicalizeName(impNorm(get(r, 'name')));
+      if (!name) continue;
+      const key = normalizeArabic(name);
+      if (have.has(key) || seen.has(key)) { skippedDup.push(name); continue; }
+      seen.add(key);
+      const sp = importPhones(get(r, 'phone')), mp = importPhones(get(r, 'mPhone'));
+      if (sp.bad || mp.bad) badPhones++;
+      if (!sp.main && !mp.main) noPhone++;
+      rows.push({
+        name, student: sp.main, mother: mp.main, others: [...sp.extra, ...mp.extra],
+        motherName: impNorm(get(r, 'mName')), notes: String(get(r, 'notes') == null ? '' : get(r, 'notes')).trim()
+      });
+    }
+    importRows = rows;
+    const cls = document.getElementById('import-class').value;
+    box.innerHTML = `✅ جديد هيتضاف: <b>${rows.length}</b>` +
+      (skippedDup.length ? `<br>⏭️ متسجلين قبل كده (هيتخطوا): <b>${skippedDup.length}</b>` : '') +
+      (badPhones ? `<br>⚠️ صفوف فيها رقم غلط اتتجاهل: <b>${badPhones}</b>` : '') +
+      (noPhone ? `<br>⚠️ صفوف من غير أي رقم صالح: <b>${noPhone}</b>` : '') +
+      (!cls ? '<br>⚠️ مفيش فصل متحدد — هيتضافوا "لسه متقسمش"' : '');
+    if (rows.length) btn.style.display = 'block';
+  } catch (err) {
+    console.error(err);
+    box.innerHTML = '<span style="color:var(--danger,#e74c3c)">مقدرتش أقرأ الملف — اتأكد إنه Excel سليم</span>';
+  }
+};
+window.confirmImport = async () => {
+  if (!importRows.length) return;
+  const btn = document.getElementById('import-confirm-btn');
+  const cls = document.getElementById('import-class').value || '';
+  const allowed = getAllowedAssignedClasses();
+  if (allowed.length && !allowed.includes(cls)) { showToast('اختار فصل من فصولك', 'error'); return; }
+  btn.disabled = true; btn.textContent = 'جاري الاستيراد…';
+  try {
+    for (let i = 0; i < importRows.length; i += 400) {
+      const batch = writeBatch(db);
+      importRows.slice(i, i + 400).forEach(r => {
+        batch.set(doc(collection(db,'students')), {
+          name: r.name,
+          dob: '',
+          address: r.notes,
+          addressMap: '',
+          motherName: r.motherName,
+          gender: guessGenderFromName(r.name) || '',
+          ...buildPhoneFields('', r.mother, r.student, r.others, null),
+          classSection: cls,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      });
+      await batch.commit();
+    }
+    bumpStudentsRev();
+    const n = importRows.length;
+    importRows = [];
+    closeImportModal();
+    await loadStudents();
+    showToast(`تم استيراد ${n} مخدوم ✓`, 'success');
+    logActivity('استيراد مخدومين من إكسيل', `${n} مخدوم — ${cls ? classLabel(cls) : 'من غير فصل'}`);
+  } catch (err) {
+    console.error(err);
+    showToast('حصل خطأ أثناء الاستيراد — مفيش صلاحية أو النت فاصل', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '✓ استيراد';
+  }
 };
 
 const canDeleteStudent = () => currentRole === 'admin' || isPrimaryAdmin(currentEmail);
@@ -4020,10 +4175,11 @@ window.openProfile = (id) => {
   }
   const fields = [];
   if (s.dob) fields.push({ icon:'🎂', key:'تاريخ الميلاد', val: new Date(s.dob).toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'}) });
-  if (s.address) fields.push({ icon:'📍', key:'العنوان', val: String(s.address).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>') });
+  if (s.address) fields.push({ icon:'📝', key:'ملاحظات', val: String(s.address).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>') });
   if (s.addressMap && /^https?:\/\//i.test(s.addressMap)) fields.push({ icon:'🗺️', key:'الموقع على الخريطة', link: s.addressMap });
   const _vn = visitNoteText(s);
   fields.push({ icon:'📝', key:'ملحوظات الافتقاد', val: _vn ? _vn.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>') : '❓ مفيش ملحوظة' });
+  if (s.motherName) fields.push({ icon:'👩', key:'اسم الأم', val: String(s.motherName).replace(/&/g,'&amp;').replace(/</g,'&lt;') });
   studentPhoneEntries(s).forEach(e => fields.push({ icon:'📞', key: e.label, val: e.val, phone: true, idx: e.idx }));
   // attendance history
   const relevantDates = Object.keys(H?.att||{}).sort().reverse().slice(0,5);
@@ -4407,7 +4563,7 @@ function buildAttSheet(expAtt) {
 // بيبني شيت بيانات المخدومين (بروفايل كامل: النوع، تاريخ الميلاد، العنوان، التليفونات، ملاحظات الافتقاد)
 function buildStudentsSheet() {
   const genderLabel = g => g === 'male' ? 'ولد' : (g === 'female' ? 'بنت' : '');
-  const row1 = ['الاسم','النوع','تاريخ الميلاد','الفصل','العنوان','تليفون الأب','تليفون الأم','تليفون المخدوم','أرقام أخرى','ملاحظات الافتقاد'];
+  const row1 = ['الاسم','النوع','تاريخ الميلاد','الفصل','ملاحظات','تليفون الأب','تليفون الأم','تليفون المخدوم','أرقام أخرى','ملاحظات الافتقاد'];
   const rows = [...exportTargetStudents()]
     .sort((a,b) => a.name.localeCompare(b.name,'ar'))
     .map(s => [
@@ -6326,6 +6482,7 @@ window.openEditModal = (id) => {
   document.getElementById('edit-dob').value     = s.dob || '';
   document.getElementById('edit-address').value = s.address || '';
   document.getElementById('edit-map').value     = s.addressMap || '';
+  document.getElementById('edit-mother-name').value = s.motherName || '';
   document.getElementById('edit-gender').value  = s.gender || '';
   document.getElementById('edit-class').innerHTML = classSelectOptionsHTML(true);
   document.getElementById('edit-class').value   = s.classSection || '';
@@ -6374,6 +6531,7 @@ window.saveEditStudent = async () => {
     dob,
     address,
     addressMap,
+    motherName: document.getElementById('edit-mother-name').value.trim(),
     gender:  document.getElementById('edit-gender').value || '',
     classSection: document.getElementById('edit-class').value || '',
     ...buildPhoneFields(father, mother, student, others, prev),
