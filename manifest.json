@@ -1,7 +1,7 @@
 {
-  "name": "KG1",
-  "short_name": "KG1",
-  "description": "تسجيل حضور KG1",
+  "name": "خدمة فتيات إعدادي",
+  "short_name": "خدمة فتيات إعدادي",
+  "description": "تسجيل حضور خدمة فتيات إعدادي",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
