@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#1a1f2e">
+<meta name="theme-color" content="#221e38">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="خدمة فتيات إعدادي">
@@ -371,6 +371,11 @@ details.filter-acc[open] .filter-acc-chevron{transform:rotate(180deg);}
 .btn-primary:active{box-shadow:0 0 22px var(--accent),0 0 44px color-mix(in srgb,var(--accent) 50%,transparent);}
 .page-title-box{box-shadow:0 0 12px color-mix(in srgb,var(--accent) 22%,transparent);border-color:color-mix(in srgb,var(--accent) 35%,transparent);}
 @media (prefers-reduced-motion:reduce){.admin-card::after,.tab.active,.class-tab.active,.filter-chip.active,.admin-mode-btn.active{animation:none!important;}}
+/* ===== ألوان قسم البنات (نفس حساب البنات في STMina): هيدر بنفسجي + حدود وأشكال ناعمة ===== */
+:root{--section-rgb:150,110,235;--section-tint:0.22;}
+.top-bar{background:linear-gradient(180deg,rgba(var(--section-rgb),var(--section-tint)),var(--surface) 75%);border-bottom:1px solid rgba(160,120,240,0.35);border-radius:0 0 18px 18px;}
+.class-tab,.action-btn{border-radius:999px;}
+.icon-btn{border-radius:50%;}
 </style>
 </head>
 <body>
