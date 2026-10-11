@@ -6339,6 +6339,8 @@ function checkShowBanner() {
   if (isStandalone()) { hideInstallBanner(); return; }
   setTimeout(() => { if (!isStandalone()) document.getElementById('install-banner').style.display = 'block'; }, 1000);
 }
+// أندرويد/كروم: البانر مبيظهرش غير لما المتصفح يبعت إشارة التثبيت، فالضغطة على "تثبيت" بتنزّل البرنامج على طول
+// أيفون: مفيش تثبيت مباشر في iOS، فالبانر بيظهر وبيعرض الخطوات
 // نافذة خطوات التثبيت (للأيفون، ولأي موبايل المتصفح مديهوش تثبيت مباشر)
 function showInstallHelp(kind) {
   const old = document.getElementById('install-help'); if (old) old.remove();
@@ -6371,21 +6373,20 @@ function showInstallHelp(kind) {
 }
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; checkShowBanner(); });
 document.getElementById('install-btn').addEventListener('click', async () => {
-  if (deferredPrompt) {                       // أندرويد/كروم: تثبيت مباشر بضغطة واحدة
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+  if (deferredPrompt) {                       // تثبيت مباشر بضغطة واحدة
+    const promptEvent = deferredPrompt;
     deferredPrompt = null;
-    if (outcome === 'accepted') hideInstallBanner();
+    promptEvent.prompt();
+    await promptEvent.userChoice;
+    hideInstallBanner();
   } else if (IS_INAPP) {
     showInstallHelp('inapp');
   } else if (IS_IOS) {                        // آبل مبتسمحش بتثبيت مباشر من زرار، فبنعرض الخطوات
     showInstallHelp('ios');
-  } else {
-    showInstallHelp('android');
   }
 });
 window.addEventListener('appinstalled', hideInstallBanner);
-checkShowBanner();
+if (IS_IOS) checkShowBanner();
 </script>
 </body>
 </html>
