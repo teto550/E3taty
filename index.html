@@ -2796,6 +2796,7 @@ window.addStudent = async () => {
 
 // ===== IMPORT STUDENTS FROM EXCEL =====
 let importRows = [];
+let importExtraDupIds = [];
 const impNorm = v => String(v == null ? '' : v).replace(/[\u0640\u064B-\u065F]/g, '').replace(/\s+/g, ' ').trim();
 // بيحوّل رقم الإكسيل (اللي بيضيّع الصفر الأول) لرقم موبايل صحيح. بيرجّع { main, extra[] } والرقم الغلط بيتتجاهل
 function importPhones(v) {
@@ -2821,7 +2822,7 @@ window.openImportModal = async () => {
   document.getElementById('import-file').value = '';
   document.getElementById('import-preview').innerHTML = '';
   document.getElementById('import-confirm-btn').style.display = 'none';
-  importRows = [];
+  importRows = []; importExtraDupIds = [];
   document.getElementById('import-modal').style.display = 'block';
   document.body.style.overflow = 'hidden';
 };
@@ -2833,10 +2834,11 @@ window.handleImportFile = async (e) => {
   const f = e.target.files && e.target.files[0];
   const box = document.getElementById('import-preview');
   const btn = document.getElementById('import-confirm-btn');
-  btn.style.display = 'none'; importRows = [];
+  btn.style.display = 'none'; importRows = []; importExtraDupIds = [];
   if (!f) return;
   try {
-    await ensureStudents();
+    // تحميل جديد من السيرفر (مش من الكاش) عشان نكتشف الأسماء اللي اتضافت في رفعة سابقة
+    await loadStudents(true);
     const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
@@ -2853,50 +2855,90 @@ window.handleImportFile = async (e) => {
       else if (h === 'ملاحظات') col.notes = i;
     });
     const get = (r, k) => (col[k] == null ? null : r[col[k]]);
-    const have = new Map(allStudents.map(s => [normalizeArabic(s.name), s]));
-    const seen = new Set();
-    let skippedDup = [], badPhones = 0, noPhone = 0;
-    const rows = [];
+    // كل اسم موجود قبل كده (ممكن يبقى له أكتر من نسخة لو اتكرر) — بنحتفظ بأقدم نسخة ونحدّثها، والباقي مكرر
+    const have = new Map();
+    for (const s of allStudents) {
+      const k = normalizeArabic(s.name);
+      if (!have.has(k)) have.set(k, []);
+      have.get(k).push(s);
+    }
+    have.forEach(list => list.sort((a, b) => tsMs(a.createdAt) - tsMs(b.createdAt)));
+    const byKey = new Map(); // لو الاسم اتكرر جوه الشيت نفسه، آخر صف هو اللي بيتاخد
+    let fileDup = 0, badPhones = 0, noPhone = 0;
     for (const r of aoa.slice(hi + 1)) {
       if (!r) continue;
       const name = canonicalizeName(impNorm(get(r, 'name')));
       if (!name) continue;
       const key = normalizeArabic(name);
-      if (have.has(key) || seen.has(key)) { skippedDup.push(name); continue; }
-      seen.add(key);
+      if (byKey.has(key)) fileDup++;
       const sp = importPhones(get(r, 'phone')), mp = importPhones(get(r, 'mPhone'));
       if (sp.bad || mp.bad) badPhones++;
       if (!sp.main && !mp.main) noPhone++;
-      rows.push({
+      byKey.set(key, {
         name, student: sp.main, mother: mp.main, others: [...sp.extra, ...mp.extra],
         motherName: impNorm(get(r, 'mName')), notes: String(get(r, 'notes') == null ? '' : get(r, 'notes')).trim()
       });
     }
+    const rows = [], extraDupIds = [];
+    let toUpdate = 0;
+    byKey.forEach((row, key) => {
+      const existing = have.get(key);
+      if (existing && existing.length) {
+        row.existing = existing[0];
+        toUpdate++;
+        existing.slice(1).forEach(x => extraDupIds.push(x.id));
+      }
+      rows.push(row);
+    });
     importRows = rows;
+    importExtraDupIds = extraDupIds;
+    const toAdd = rows.length - toUpdate;
     const cls = document.getElementById('import-class').value;
-    box.innerHTML = `✅ جديد هيتضاف: <b>${rows.length}</b>` +
-      (skippedDup.length ? `<br>⏭️ متسجلين قبل كده (هيتخطوا): <b>${skippedDup.length}</b>` : '') +
+    box.innerHTML = `✅ جديد هيتضاف: <b>${toAdd}</b>` +
+      (toUpdate ? `<br>🔄 موجودين قبل كده (هتتحدّث بياناتهم بدل ما يتكرروا): <b>${toUpdate}</b>` : '') +
+      (extraDupIds.length ? `<br>🗑️ نسخ مكررة موجودة في الداتا (هتتحذف): <b>${extraDupIds.length}</b>` : '') +
+      (fileDup ? `<br>⏭️ أسامي مكررة جوه الشيت نفسه (اتاخد آخر صف): <b>${fileDup}</b>` : '') +
       (badPhones ? `<br>⚠️ صفوف فيها رقم غلط اتتجاهل: <b>${badPhones}</b>` : '') +
       (noPhone ? `<br>⚠️ صفوف من غير أي رقم صالح: <b>${noPhone}</b>` : '') +
-      (!cls ? '<br>⚠️ مفيش فصل متحدد — هيتضافوا "لسه متقسمش"' : '');
-    if (rows.length) btn.style.display = 'block';
+      (!cls ? '<br>⚠️ مفيش فصل متحدد — الجدد هيتضافوا "لسه متقسمش" والموجودين فصلهم هيفضل زي ما هو' : '');
+    if (rows.length || extraDupIds.length) btn.style.display = 'block';
   } catch (err) {
     console.error(err);
     box.innerHTML = '<span style="color:var(--danger,#e74c3c)">مقدرتش أقرأ الملف — اتأكد إنه Excel سليم</span>';
   }
 };
 window.confirmImport = async () => {
-  if (currentRole !== 'admin' || !importRows.length) return;
+  if (currentRole !== 'admin' || !(importRows.length || importExtraDupIds.length)) return;
   const btn = document.getElementById('import-confirm-btn');
   const cls = document.getElementById('import-class').value || '';
   const allowed = getAllowedAssignedClasses();
   if (allowed.length && !allowed.includes(cls)) { showToast('اختار فصل من فصولك', 'error'); return; }
+  if (importExtraDupIds.length && !confirm(`هيتم حذف ${importExtraDupIds.length} نسخة مكررة من المخدومين (بيتحفظ أقدم نسخة من كل اسم). متأكد؟`)) return;
   btn.disabled = true; btn.textContent = 'جاري الاستيراد…';
   try {
-    for (let i = 0; i < importRows.length; i += 400) {
-      const batch = writeBatch(db);
-      importRows.slice(i, i + 400).forEach(r => {
-        batch.set(doc(collection(db,'students')), {
+    // كل عملية (إضافة / تحديث / حذف) بتتحط في batch — الحد 500 عملية في الـ batch فبنقسمها 400 400
+    const ops = [];
+    let added = 0, updated = 0;
+    importRows.forEach(r => {
+      if (r.existing) {
+        const prev = r.existing;
+        // الشيت مفيهوش عمود لرقم الأب/الخريطة/النوع، فبنسيبهم زي ما هم. وأي خانة فاضية في الشيت مبتمسحش القيمة الموجودة
+        const father = prev.fatherPhone || '';
+        const mother = r.mother || prev.motherPhone || '';
+        const student = r.student || prev.studentPhone || '';
+        const others = r.others.length ? r.others : (prev.otherPhones || []);
+        const data = {
+          name: r.name,
+          ...buildPhoneFields(father, mother, student, others, prev),
+          updatedAt: serverTimestamp()
+        };
+        if (r.notes) data.address = r.notes;
+        if (r.motherName) data.motherName = r.motherName;
+        if (cls) data.classSection = cls;
+        ops.push(b => b.update(doc(db,'students',prev.id), data));
+        updated++;
+      } else {
+        ops.push(b => b.set(doc(collection(db,'students')), {
           name: r.name,
           address: r.notes,
           addressMap: '',
@@ -2906,17 +2948,24 @@ window.confirmImport = async () => {
           classSection: cls,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
-        });
-      });
+        }));
+        added++;
+      }
+    });
+    importExtraDupIds.forEach(id => ops.push(b => b.delete(doc(db,'students',id))));
+    for (let i = 0; i < ops.length; i += 400) {
+      const batch = writeBatch(db);
+      ops.slice(i, i + 400).forEach(fn => fn(batch));
       await batch.commit();
     }
-    bumpStudentsRev();
-    const n = importRows.length;
-    importRows = [];
+    const removed = importExtraDupIds.length;
+    bumpStudentsRev(removed > 0);
+    importRows = []; importExtraDupIds = [];
     closeImportModal();
-    await loadStudents();
-    showToast(`تم استيراد ${n} مخدوم ✓`, 'success');
-    logActivity('استيراد مخدومين من إكسيل', `${n} مخدوم — ${cls ? classLabel(cls) : 'من غير فصل'}`);
+    // force عشان الكاش القديم مايرجعش (عداد التحديث بيتأخر ثانيتين) وإلا الرفعة الجاية مش هتشوف الأسماء دي
+    await loadStudents(true);
+    showToast(`تم: ${added} جديد، ${updated} تحديث${removed ? `، ${removed} مكرر اتحذف` : ''} ✓`, 'success');
+    logActivity('استيراد مخدومين من إكسيل', `${added} جديد، ${updated} تحديث${removed ? `، ${removed} مكرر اتحذف` : ''} — ${cls ? classLabel(cls) : 'من غير فصل'}`);
   } catch (err) {
     console.error(err);
     showToast('حصل خطأ أثناء الاستيراد — مفيش صلاحية أو النت فاصل', 'error');
