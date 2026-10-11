@@ -10,6 +10,9 @@
   "orientation": "portrait",
   "lang": "ar",
   "dir": "rtl",
+  "related_applications": [
+    { "platform": "webapp", "url": "https://teto550.github.io/E3taty/manifest.json" }
+  ],
   "icons": [
     {
       "src": "icon-193.png",

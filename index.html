@@ -6301,6 +6301,7 @@ function showInstallHelp(kind) {
   const steps = {
     ios: ['افتح البرنامج في <b>Safari</b> (مش من جوه واتساب أو فيسبوك)', 'دوس على زرار <b>المشاركة</b> <span style="font-size:20px">⬆️</span> اللي في الشريط تحت', 'اسحب لتحت واختار <b>Add to Home Screen</b> (إضافة إلى الشاشة الرئيسية)', 'دوس <b>Add</b> (إضافة)'],
     inapp: ['إنت فاتح البرنامج من جوه تطبيق تاني (واتساب / فيسبوك…) وده مبيسمحش بالتثبيت', 'دوس على <b>⋮</b> أو <b>…</b> واختار <b>فتح في المتصفح</b> (Open in browser)', IS_IOS ? 'اتأكد إنه اتفتح في <b>Safari</b> وبعدين اتبع خطوات التثبيت' : 'بعد ما يفتح في <b>Chrome</b> دوس على زرار <b>تثبيت</b> تاني'],
+    installed: ['البرنامج <b>متثبّت بالفعل</b> على موبايلك — ولهذا كروم مش بيعرض نافذة التثبيت تاني', 'دوّر على أيقونته في <b>الشاشة الرئيسية</b> أو <b>قايمة التطبيقات</b> وافتحه منها', 'لو عايز تثبّته من جديد: امسحه الأول (دوس مطوّلًا على الأيقونة ← إلغاء التثبيت)، وبعدين افتح اللينك ده في <b>Chrome</b> ودوس <b>تثبيت</b>'],
     android: ANDROID_STEPS[detectBrowser()] || ANDROID_STEPS.other,
     desktop: ['دوس على <b>أيقونة التثبيت</b> 🖥️ اللي في آخر شريط العنوان (جنب النجمة)', 'أو من <b>⋮</b> ← <b>حفظ ومشاركة</b> ← <b>تثبيت الصفحة كتطبيق</b> (Install page as app)', 'دوس <b>تثبيت</b>']
   }[kind];
@@ -6309,7 +6310,7 @@ function showInstallHelp(kind) {
   d.style.cssText = 'position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center;font-family:Cairo,sans-serif;direction:rtl';
   d.onclick = e => { if (e.target === d) d.remove(); };
   d.innerHTML = `<div style="background:var(--surface,#1f2536);color:var(--text,#fff);border:1px solid var(--border,#333);border-radius:18px 18px 0 0;width:100%;max-width:480px;padding:20px 20px calc(24px + env(safe-area-inset-bottom))">
-    <div style="font-size:17px;font-weight:900;margin-bottom:14px">📲 خطوات تثبيت البرنامج</div>
+    <div style="font-size:17px;font-weight:900;margin-bottom:14px">${kind === 'installed' ? '✅ البرنامج متثبّت عندك' : '📲 خطوات تثبيت البرنامج'}</div>
     <ol style="margin:0 0 16px;padding:0 20px 0 0;line-height:2;font-size:14px">${steps.map(t => `<li>${t}</li>`).join('')}</ol>
     ${kind === 'android' ? '<div style="font-size:12px;color:var(--text-dim,#999);margin:-6px 0 14px;line-height:1.8">لو مش لاقي خيار التثبيت: ممكن البرنامج يكون متثبّت على موبايلك قبل كده (دوّر عليه في الشاشة الرئيسية أو قايمة التطبيقات)، أو افتح اللينك في <b>Chrome</b>.</div>' : ''}
     ${kind === 'ios' ? '<div style="text-align:center;font-size:30px;animation:none">⬇️</div>' : ''}
@@ -6365,10 +6366,19 @@ function openInChrome() {
   location.href = intent;
   setTimeout(() => { if (!left) showInstallHelp(IS_INAPP ? 'inapp' : 'android'); }, 1800); // لو كروم مش موجود أو الفتح اتمنع: نعرض الخطوات
 }
+// كروم مبيبعتش إشارة التثبيت لو البرنامج متثبّت أصلًا على الموبايل — بنسأله قبل ما نعرض خطوات تثبيت مالهاش لازمة
+async function isAlreadyInstalled() {
+  try {
+    if (!navigator.getInstalledRelatedApps) return false;
+    const apps = await navigator.getInstalledRelatedApps();
+    return apps.length > 0;
+  } catch (e) { return false; }
+}
 document.getElementById('install-btn').addEventListener('click', async () => {
   const btn = document.getElementById('install-btn');
   if (installPromptPending) return;           // نافذة التثبيت مفتوحة بالفعل (شوفها جنب شريط العنوان)
   if (deferredPrompt) return runInstallPrompt();
+  if (!IS_IOS && await isAlreadyInstalled()) return showInstallHelp('installed');
   if (IS_INAPP && !IS_ANDROID) return showInstallHelp('inapp');
   if (IS_IOS) return showInstallHelp('ios');   // آبل مبتسمحش بتثبيت مباشر من زرار، فبنعرض الخطوات
   if (IS_ANDROID && !isRealChrome()) return openInChrome();
