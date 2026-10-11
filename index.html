@@ -6323,10 +6323,16 @@ function showInstallHelp(kind) {
   const dbg = document.createElement('div');
   dbg.style.cssText = 'font-size:11px;color:var(--text-dim,#999);margin:-6px 0 12px;line-height:1.7';
   d.firstElementChild.insertBefore(dbg, d.firstElementChild.querySelector('button'));
-  const line = sw => dbg.textContent = 'تشخيص: المتصفح ' + br + ' — service worker: ' + sw + ' — إشارة التثبيت من المتصفح: ' + (deferredPrompt ? 'وصلت' : (window.__bipFired ? 'وصلت واتستخدمت' : 'لسه مجتش')) + ' — شغال كتطبيق مثبّت: ' + (isStandalone() ? 'أيوه' : 'لأ') + ' — UA: ' + ua.replace(/^Mozilla\/5\.0 /, '').slice(0, 120);
-  line('...');
+  const info = { sw: '...', ctrl: '...', mf: '...', inst: '...' };
+  const line = () => dbg.textContent = 'تشخيص (نسخة 3): المتصفح ' + br + ' — المسار: ' + location.pathname + ' — service worker: ' + info.sw + ' (متحكّم: ' + info.ctrl + ') — ملف manifest: ' + info.mf + ' — متثبّت بالفعل: ' + info.inst + ' — إشارة التثبيت من المتصفح: ' + (deferredPrompt ? 'وصلت' : (window.__bipFired ? 'وصلت واتستخدمت' : 'لسه مجتش')) + ' — شغال كتطبيق مثبّت: ' + (isStandalone() ? 'أيوه' : 'لأ') + ' — UA: ' + ua.replace(/^Mozilla\/5\.0 /, '').slice(0, 120);
+  line();
   (navigator.serviceWorker ? navigator.serviceWorker.getRegistration() : Promise.resolve(null))
-    .then(r => line(r ? 'شغال' : 'مش متسجّل')).catch(() => line('خطأ'));
+    .then(r => { info.sw = r ? 'شغال' : 'مش متسجّل'; info.ctrl = (navigator.serviceWorker && navigator.serviceWorker.controller) ? 'أيوه' : 'لأ'; line(); }).catch(() => { info.sw = 'خطأ'; line(); });
+  const mfl = document.querySelector('link[rel="manifest"]');
+  (mfl ? fetch(mfl.href, { cache: 'no-store' }).then(r => r.json().then(j => info.mf = r.status + ' ' + (j.id || '') + ' ' + ((j.icons || []).length) + ' أيقونات').catch(() => info.mf = r.status + ' مش JSON')) : Promise.resolve(info.mf = 'مفيش رابط'))
+    .catch(() => { info.mf = 'فشل التحميل'; }).then(line);
+  (navigator.getInstalledRelatedApps ? navigator.getInstalledRelatedApps().then(a => info.inst = a.length ? 'أيوه' : 'لأ') : Promise.resolve(info.inst = 'غير مدعوم'))
+    .catch(() => { info.inst = 'خطأ'; }).then(line);
 }
 window.__onBip = e => { deferredPrompt = e; checkShowBanner(); };
 if (deferredPrompt) checkShowBanner(); // الإشارة وصلت قبل ما السكربت ده يشتغل
