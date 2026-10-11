@@ -6269,12 +6269,34 @@ function checkShowBanner() {
 // أندرويد/كروم: البانر مبيظهرش غير لما المتصفح يبعت إشارة التثبيت، فالضغطة على "تثبيت" بتنزّل البرنامج على طول
 // أيفون: مفيش تثبيت مباشر في iOS، فالبانر بيظهر وبيعرض الخطوات
 // نافذة خطوات التثبيت (للأيفون، ولأي موبايل المتصفح مديهوش تثبيت مباشر)
+// بنعرف المتصفح عشان نكتب الخطوات الصح (القايمة مكانها واسمها بيختلفوا من متصفح للتاني)
+function detectBrowser() {
+  const ua = navigator.userAgent;
+  if (/SamsungBrowser/i.test(ua)) return 'samsung';
+  if (/OPR\/|OPT\/|Opera/i.test(ua)) return 'opera';
+  if (/Firefox|FxiOS/i.test(ua)) return 'firefox';
+  if (/EdgA|EdgiOS|Edg\//i.test(ua)) return 'edge';
+  if (navigator.brave) return 'brave';
+  if (/CriOS|Chrome/i.test(ua)) return 'chrome';
+  if (/Safari/i.test(ua)) return 'safari';
+  return 'other';
+}
+const BROWSER_NAMES = { samsung:'Samsung Internet', opera:'Opera', firefox:'Firefox', edge:'Edge', brave:'Brave', chrome:'Chrome', safari:'Safari', other:'غير معروف' };
+const ANDROID_STEPS = {
+  chrome:  ['دوس على <b>⋮</b> (النقط التلاتة) فوق على اليمين', 'اختار <b>تثبيت التطبيق</b> (Install app) أو <b>إضافة إلى الشاشة الرئيسية</b>', 'دوس <b>تثبيت</b>'],
+  samsung: ['دوس على <b>≡</b> (القائمة) في الشريط اللي تحت', 'اختار <b>إضافة صفحة إلى</b> (Add page to)', 'اختار <b>الشاشة الرئيسية</b> (Home screen) وبعدين <b>إضافة</b>'],
+  opera:   ['دوس على <b>⋮</b> أو <b>≡</b> (القائمة)', 'اختار <b>إضافة إلى</b> (Add to) وبعدين <b>الشاشة الرئيسية</b> (Home screen)', 'دوس <b>إضافة</b>'],
+  firefox: ['دوس على <b>⋮</b> (القائمة)', 'اختار <b>تثبيت</b> (Install)', 'دوس <b>إضافة</b>'],
+  edge:    ['دوس على <b>≡</b> (القائمة) في الشريط اللي تحت', 'اختار <b>إضافة إلى الهاتف</b> (Add to phone)', 'دوس <b>تثبيت</b>'],
+  other:   ['افتح <b>قايمة المتصفح</b> (⋮ أو ≡)', 'دوّر على <b>تثبيت التطبيق</b> (Install app) أو <b>إضافة إلى الشاشة الرئيسية</b> (Add to Home screen)', 'لو مش موجودة: افتح اللينك في <b>Chrome</b> وجرّب تاني']
+};
+ANDROID_STEPS.brave = ANDROID_STEPS.safari = ANDROID_STEPS.other;
 function showInstallHelp(kind) {
   const old = document.getElementById('install-help'); if (old) old.remove();
   const steps = {
     ios: ['افتح البرنامج في <b>Safari</b> (مش من جوه واتساب أو فيسبوك)', 'دوس على زرار <b>المشاركة</b> <span style="font-size:20px">⬆️</span> اللي في الشريط تحت', 'اسحب لتحت واختار <b>Add to Home Screen</b> (إضافة إلى الشاشة الرئيسية)', 'دوس <b>Add</b> (إضافة)'],
     inapp: ['إنت فاتح البرنامج من جوه تطبيق تاني (واتساب / فيسبوك…) وده مبيسمحش بالتثبيت', 'دوس على <b>⋮</b> أو <b>…</b> واختار <b>فتح في المتصفح</b> (Open in browser)', IS_IOS ? 'اتأكد إنه اتفتح في <b>Safari</b> وبعدين اتبع خطوات التثبيت' : 'بعد ما يفتح في <b>Chrome</b> دوس على زرار <b>تثبيت</b> تاني'],
-    android: ['دوس على <b>⋮</b> (النقط التلاتة) فوق في Chrome', 'اختار <b>تثبيت التطبيق</b> أو <b>Install app</b> (أو Add to Home screen)', 'دوس <b>تثبيت</b>']
+    android: ANDROID_STEPS[detectBrowser()] || ANDROID_STEPS.other
   }[kind];
   const d = document.createElement('div');
   d.id = 'install-help';
@@ -6283,17 +6305,18 @@ function showInstallHelp(kind) {
   d.innerHTML = `<div style="background:var(--surface,#1f2536);color:var(--text,#fff);border:1px solid var(--border,#333);border-radius:18px 18px 0 0;width:100%;max-width:480px;padding:20px 20px calc(24px + env(safe-area-inset-bottom))">
     <div style="font-size:17px;font-weight:900;margin-bottom:14px">📲 خطوات تثبيت البرنامج</div>
     <ol style="margin:0 0 16px;padding:0 20px 0 0;line-height:2;font-size:14px">${steps.map(t => `<li>${t}</li>`).join('')}</ol>
+    ${kind === 'android' ? '<div style="font-size:12px;color:var(--text-dim,#999);margin:-6px 0 14px;line-height:1.8">لو مش لاقي خيار التثبيت: ممكن البرنامج يكون متثبّت على موبايلك قبل كده (دوّر عليه في الشاشة الرئيسية أو قايمة التطبيقات)، أو افتح اللينك في <b>Chrome</b>.</div>' : ''}
     ${kind === 'ios' ? '<div style="text-align:center;font-size:30px;animation:none">⬇️</div>' : ''}
     <button onclick="document.getElementById('install-help').remove()" style="width:100%;background:var(--surface2,#2a3148);border:1px solid var(--border,#333);border-radius:10px;color:inherit;font-family:Cairo,sans-serif;font-size:15px;font-weight:700;padding:12px;cursor:pointer">تمام</button>
   </div>`;
   document.body.appendChild(d);
   // سطر تشخيص صغير: بيقول ليه التثبيت المباشر مش شغال على الجهاز ده
   const ua = navigator.userAgent;
-  const br = /SamsungBrowser/i.test(ua) ? 'Samsung Internet' : /Firefox|FxiOS/i.test(ua) ? 'Firefox' : /EdgA|EdgiOS/i.test(ua) ? 'Edge' : /CriOS|Chrome/i.test(ua) ? 'Chrome' : /Safari/i.test(ua) ? 'Safari' : 'غير معروف';
+  const br = BROWSER_NAMES[detectBrowser()];
   const dbg = document.createElement('div');
   dbg.style.cssText = 'font-size:11px;color:var(--text-dim,#999);margin:-6px 0 12px;line-height:1.7';
   d.firstElementChild.insertBefore(dbg, d.firstElementChild.querySelector('button'));
-  const line = sw => dbg.textContent = 'تشخيص: المتصفح ' + br + ' — service worker: ' + sw + ' — إشارة التثبيت من المتصفح: ' + (deferredPrompt ? 'وصلت' : 'لسه مجتش') + ' — شغال كتطبيق مثبّت: ' + (isStandalone() ? 'أيوه' : 'لأ');
+  const line = sw => dbg.textContent = 'تشخيص: المتصفح ' + br + ' — service worker: ' + sw + ' — إشارة التثبيت من المتصفح: ' + (deferredPrompt ? 'وصلت' : 'لسه مجتش') + ' — شغال كتطبيق مثبّت: ' + (isStandalone() ? 'أيوه' : 'لأ') + ' — UA: ' + ua.replace(/^Mozilla\/5\.0 /, '').slice(0, 120);
   line('...');
   (navigator.serviceWorker ? navigator.serviceWorker.getRegistration() : Promise.resolve(null))
     .then(r => line(r ? 'شغال' : 'مش متسجّل')).catch(() => line('خطأ'));
