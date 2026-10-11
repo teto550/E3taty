@@ -527,7 +527,7 @@ body{background:var(--bg)}
     <div id="tab-admin-home" style="display:none">
       <div class="admin-grid">
         <button class="admin-card" onclick="showAdminClasses()"><span class="ac-emoji">🏫</span>الفصول</button>
-        <button class="admin-card" onclick="switchTab('monitor')"><span class="ac-emoji">👥</span>الخادمات</button>
+        <button class="admin-card" onclick="switchTab('monitor')"><span class="ac-emoji">👥</span>الخادمات<span id="admin-pending-badge" style="display:none;margin-top:6px;background:var(--danger);color:#fff;border-radius:12px;padding:1px 9px;font-size:12px;font-weight:800"></span></button>
       </div>
       <div class="creator-credit">Creator by David Emil : 01274005969</div>
     </div>
@@ -4992,6 +4992,9 @@ function renderSupPending() {
 }
 function renderPendingList(list) {
   renderSupPending();
+  // علامة "في طلب جديد" على كارت الخادمات في صفحة الأدمن الرئيسية — بتختفي أول ما مفيش طلبات معلّقة (قبول أو رفض)
+  { const ab = document.getElementById('admin-pending-badge');
+    if (ab) { const n = currentRole === 'admin' ? list.length : 0; ab.textContent = n ? `📥 ${n === 1 ? 'طلب جديد' : n + ' طلبات جديدة'}` : ''; ab.style.display = n ? 'inline-block' : 'none'; } }
   renderClassServList();
   const ps = document.getElementById('pending-section'); if (ps) ps.style.display = list.length ? '' : 'none';
   document.getElementById('pending-count').textContent = list.length;
