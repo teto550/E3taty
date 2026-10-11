@@ -878,7 +878,7 @@ body{background:var(--bg)}
         <button class="action-btn" onclick="closeRolesModal()" style="flex:0 0 auto">→ رجوع</button>
         <div style="flex:1;min-width:0">
           <div id="roles-modal-title" style="font-size:18px;font-weight:900">المستخدمين والأدوار</div>
-          <div id="roles-modal-sub" style="font-size:12px;color:var(--text-dim);margin-top:2px">أي خادمة متوزع على فصل بيبقى "خادمة فصل" فيه تلقائي — الدور هنا لترقيته لمسؤولة فصل أو أدمن</div>
+          <div id="roles-modal-sub" style="font-size:12px;color:var(--text-dim);margin-top:2px">أي خادمة متوزع على فصل بيبقى "خادمة فصل" فيه تلقائي — الدور هنا لترقيته لأدمن</div>
         </div>
       </div>
 
@@ -1694,14 +1694,13 @@ function servantRoleIds(s) { return Array.isArray(s.roleIds) ? s.roleIds.filter(
 function servantInRole(s, roleId) { return servantRoleIds(s).includes(roleId); }
 // مسؤول قديم (من غير supervisorClass) بيتحسب مسؤولة عن كل فصوله زي الأول
 function supervisedClassesOf(s) {
-  if (!s || s.role !== 'supervisor') return [];
-  return s.supervisorClass !== undefined ? normalizeAssignedClasses(s.supervisorClass) : normalizeAssignedClasses(s.assignedClass);
+  return []; // مفيش دور "مسؤولة فصل" — الأدوار أدمن أو خادمة بس
 }
 function derivePermsFromRoles(roleList) {
   if (roleList.some(r => r.isAdmin)) return { role:'admin', assignedClass:'', supervisorClass:'' };
   const all = new Set(), sup = new Set();
-  roleList.forEach(r => (r.classes || []).forEach(c => { all.add(c); if (r.isSupervisor) sup.add(c); }));
-  return { role: sup.size ? 'supervisor' : 'servant', assignedClass: [...all].join(','), supervisorClass: [...sup].join(',') };
+  roleList.forEach(r => (r.classes || []).forEach(c => { all.add(c); }));
+  return { role: 'servant', assignedClass: [...all].join(','), supervisorClass: [...sup].join(',') };
 }
 // أسماء الخادمات المضافين مقدمًا: بنعتبر "أحمد" و"احمد " و"أحمد  " نفس الاسم، وبنشيل التكرار (أول شكل بيظهر هو اللي بيتعرض)
 function nameKey(n) { return normalizeArabic(n).trim(); }
@@ -1722,7 +1721,7 @@ function permsAfterRoleChange(sv, newIds, rolesNow, removedRole) {
   if (list.some(r => r.isAdmin)) return derivePermsFromRoles(list);
   const oldClasses = normalizeAssignedClasses(sv.assignedClass);
   const oldSup = supervisedClassesOf(sv);
-  const unchanged = { role: sv.role || 'servant', assignedClass: oldClasses.join(','), supervisorClass: oldSup.join(',') };
+  const unchanged = { role: sv.role === 'supervisor' ? 'servant' : (sv.role || 'servant'), assignedClass: oldClasses.join(','), supervisorClass: oldSup.join(',') };
   // أدمن متعيّن مباشرة (مش من دور): مبنمسهوش إلا لو اتشال من دور أدمن صراحةً
   if (sv.role === 'admin') {
     if (removedRole && removedRole.isAdmin) return list.length ? derivePermsFromRoles(list) : { role:'servant', assignedClass:'', supervisorClass:'' };
@@ -1732,9 +1731,7 @@ function permsAfterRoleChange(sv, newIds, rolesNow, removedRole) {
     if (list.length) return derivePermsFromRoles(list);
     if (removedRole.isSupervisor) {
       // اتشال من دور مسؤولة فصل وملوش أدوار تانية: بنسحب المسؤولية بس، وبيفضل خادمة في نفس فصوله
-      const gone = new Set(removedRole.classes || []);
-      const sup = oldSup.filter(c => !gone.has(c));
-      return { role: sup.length ? 'supervisor' : 'servant', assignedClass: unchanged.assignedClass, supervisorClass: sup.join(',') };
+      return { role: 'servant', assignedClass: unchanged.assignedClass, supervisorClass: '' };
     }
     return unchanged;
   }
@@ -1743,8 +1740,7 @@ function permsAfterRoleChange(sv, newIds, rolesNow, removedRole) {
   // خادمة قديم من غير أدوار: بنضيف الدور الجديد على صلاحياته الحالية بدل ما نستبدلها
   const d = derivePermsFromRoles(list);
   const all = oldClasses.length ? [...new Set([...oldClasses, ...normalizeAssignedClasses(d.assignedClass)])] : []; // فاضي = كل الفصول، يفضل زي ما هو
-  const sup = [...new Set([...oldSup, ...normalizeAssignedClasses(d.supervisorClass)])];
-  return { role: sup.length ? 'supervisor' : 'servant', assignedClass: all.join(','), supervisorClass: sup.join(',') };
+  return { role: 'servant', assignedClass: all.join(','), supervisorClass: '' };
 }
 // كل فصول الكي جي (id بيبدأ بـ kg أو الاسم بيبدأ بـ "كي جي") ليها نفس الإيموجي 👶 بغض النظر عن المتخزن في فايرستور
 const KG_CLASS_EMOJI = '👶';
@@ -2460,7 +2456,7 @@ async function handleSignedInUser(user) {
     explicitAuthAction = false;
     const data = snap.data();
     if (data.status === 'pending') {
-      showPendingScreen('في انتظار الموافقة', 'طلبك اتبعت للأدمن ومسؤولة فصلك وقيد المراجعة، هيتفعل حسابك بمجرد الموافقة ✋');
+      showPendingScreen('في انتظار الموافقة', 'طلبك اتبعت للأدمن وقيد المراجعة، هيتفعل حسابك بمجرد الموافقة ✋');
       watchOwnPendingStatus(user);
       return;
     }
@@ -2468,7 +2464,7 @@ async function handleSignedInUser(user) {
       showPendingScreen('تم إيقاف الحساب', 'حسابك اتحذف أو اتوقف. لو ده حصل غلط كلم الأدمن.');
       return;
     }
-    currentUid = user.uid; currentName = data.name || (user.email||'').split('@')[0]; currentRole = data.role || 'servant'; currentEmail = (user.email||'').toLowerCase();
+    currentUid = user.uid; currentName = data.name || (user.email||'').split('@')[0]; currentRole = (data.role === 'supervisor' ? 'servant' : data.role) || 'servant'; currentEmail = (user.email||'').toLowerCase();
     currentAssignedClass = data.assignedClass || '';
     currentSupervisorClass = supervisedClassesOf(data).join(',');
     currentPhone = data.phone || ''; currentAddress = data.address || '';
@@ -2532,15 +2528,13 @@ function listenOwnServantDoc(uid) {
       return;
     }
     let roleOrClassChanged = false;
-    if (d.role !== currentRole) {
-      currentRole = d.role;
+    if ((d.role === 'supervisor' ? 'servant' : d.role) !== currentRole) {
+      currentRole = d.role === 'supervisor' ? 'servant' : d.role;
       roleOrClassChanged = true;
       applyMonitorVisibility();
       if (canHandleRequests()) startPendingRequestsListener(); else stopPendingRequestsListener();
       if (currentRole === 'admin') {
         showToast('مبروك! الأدمن الأساسي خلاك أدمن 👑', 'success');
-      } else if (currentRole === 'supervisor') {
-        showToast('اتحددتلك مسؤولية فصل — بقى عندك "الخادمات" في الرئيسية 🗝️', 'success');
       } else {
         showToast('اتغيّر دورك بواسطة الأدمن الأساسي', 'info');
       }
@@ -4153,16 +4147,15 @@ function styleSimpleSheet(ws, ncols, nrows, wch) {
   return ws;
 }
 function buildServantsDataSheet(massCounts = {}) {
-  const roleLabel = x => x.role === 'admin' ? 'أدمن' : (x.role === 'supervisor' ? 'مسؤولة فصل' : 'خادمة');
-  const head = ['الاسم','التليفون','الإيميل','العنوان','الدور','الفصول','مسؤولة عن','قداس (عدد)','مدارس أحد (عدد)','اجتماع خادمات (عدد)','تحضير (عدد)'];
+  const roleLabel = x => x.role === 'admin' ? 'أدمن' : 'خادمة';
+  const head = ['الاسم','التليفون','الإيميل','العنوان','الدور','الفصول','قداس (عدد)','مدارس أحد (عدد)','اجتماع خادمات (عدد)','تحضير (عدد)'];
   const rows = exportTargetServants().map(x => [
     x.name || '', x.phone || '', x.email || '', x.address || '', roleLabel(x),
     normalizeAssignedClasses(x.assignedClass).map(classLabel).join('، '),
-    supervisedClassesOf(x).map(classLabel).join('، '),
     massCounts[x.id] || 0, x.sscCount || 0, x.meetingCount || 0, x.prepCount || 0
   ]);
   const ws = XLSX.utils.aoa_to_sheet([head, ...rows]);
-  return styleSimpleSheet(ws, head.length, rows.length, [26,16,28,26,12,24,20,12,14,14,12]);
+  return styleSimpleSheet(ws, head.length, rows.length, [26,16,28,26,12,24,12,14,14,12]);
 }
 // شيت حضور خادمات لنشاط واحد: صف لكل خادمة وعمود لكل تاريخ + إجمالي. بيرجع null لو مفيش أي حضور للنشاط ده
 function buildServantsAttSheet(activity, byDate) {
@@ -4819,7 +4812,7 @@ async function loadServantsOnce(force) {
   if (pendingEl) pendingEl.innerHTML = `<div class="loading"><div class="spinner"></div>جاري التحميل…</div>`;
   try {
     const snap = await countedGetDocs(collection(db,'servants'), 'servants (متابعة)');
-    cachedServants = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    cachedServants = snap.docs.map(d => { const x = { id:d.id, ...d.data() }; if (x.role === 'supervisor') { x.role = 'servant'; x.supervisorClass = ''; } return x; });
     servantsLoadedFlag = true; servantsLoadedAt = Date.now();
     renderPendingList(cachedServants.filter(x => x.status === 'pending'));
     renderServantsList(cachedServants.filter(x => x.status === 'approved'));
@@ -4994,7 +4987,6 @@ function renderServantProfileClassChips(s) {
   box.innerHTML = assigned.map(cid => {
     const isSup = sup.includes(cid);
     const btns = canEdit ? `
-      <button class="action-btn" onclick="setServantClassRole('${s.id}','${cid}',${!isSup})">${isSup ? '🧑‍🏫 خليه خادمة' : '🗝️ خليه مسؤول'}</button>
       <button class="action-btn" onclick="openServantClassPicker('${s.id}','${cid}')">🔁 فصل تاني</button>` : '';
     return `<span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${classBadgeHTML(cid)}<span style="font-size:11px;color:var(--text-dim)">${isSup ? '🗝️ مسؤولة فصل' : '🧑‍🏫 خادمة فصل'}</span>${btns}</span>`;
   }).join('') + (canEdit && free.length ? `<button class="action-btn" onclick="openServantClassPicker('${s.id}','')">➕ ضيف فصل</button>` : '');
@@ -5161,7 +5153,7 @@ function pendingPersonMap(name) {
   const classes = [], sup = new Set();
   allRoles.forEach(r => {
     if (r.isAdmin || !Array.isArray(r.classes) || !nameVariantsIn(r, name).length) return;
-    r.classes.forEach(c => { if (!classes.includes(c)) classes.push(c); if (r.isSupervisor) sup.add(c); });
+    r.classes.forEach(c => { if (!classes.includes(c)) classes.push(c); });
   });
   return { classes, sup };
 }
@@ -5177,7 +5169,6 @@ window.openPendingProfile = (name) => {
   document.getElementById('sprof-class-chips').innerHTML = classes.map(cid => {
     const isSup = sup.has(cid);
     return `<span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${classBadgeHTML(cid)}<span style="font-size:11px;color:var(--text-dim)">${isSup ? '🗝️ مسؤولة فصل' : '🧑‍🏫 خادمة فصل'}</span>
-      <button class="action-btn" onclick="setPendingClassRole(decodeURIComponent('${e}'),'${cid}',${!isSup})">${isSup ? '🧑‍🏫 خليه خادمة' : '🗝️ خليه مسؤول'}</button>
       <button class="action-btn" onclick="openPendingClassPicker(decodeURIComponent('${e}'),'${cid}')">🔁 فصل تاني</button></span>`;
   }).join('') + (allClasses.some(c => !classes.includes(c.id)) ? `<button class="action-btn" onclick="openPendingClassPicker(decodeURIComponent('${e}'),'')">➕ ضيف فصل</button>` : '');
   document.getElementById('sprof-contact').innerHTML = `📧 لسه مسجلش حساب — الإيميل هيظهر هنا أول ما يسجل ويتقبل`;
@@ -5555,12 +5546,12 @@ let allRoles = [];
 let rolesLoadedFlag = false;
 let rolesReturnTab = ''; // التاب اللي كان مفتوح قبل ما ندخل شاشة الأدوار، عشان نرجعله لما نقفل
 let editingRoleId = '';        // '' = دور جديد
-let editingRoleType = 'classServant'; // 'classServant' | 'classSupervisor' | 'admin'
+let editingRoleType = 'classServant'; // 'classServant' | 'admin'
 let editingRoleClasses = [];   // [classId,...]
 let editingRoleMemberIds = []; // [servantId,...]
 let editingRolePendingNames = []; // أسماء خادمات لسه ملهمش حساب، هيلاقوا اسمهم وقت التسجيل ويختاروه
-const ROLE_TYPE_LABELS = { classServant:'🧑‍🏫 خادمة فصل', classSupervisor:'🗝️ مسؤولة فصل', admin:'👑 أدمن' };
-const ROLE_TYPE_SHORT   = { classServant:'خادمة فصل', classSupervisor:'مسؤولة فصل', admin:'أدمن' };
+const ROLE_TYPE_LABELS = { classServant:'🧑‍🏫 خادمة فصل', admin:'👑 أدمن' };
+const ROLE_TYPE_SHORT   = { classServant:'خادمة فصل', admin:'أدمن' };
 
 window.closeRolesModal = () => {
   document.getElementById('tab-roles').style.display = 'none';
@@ -5573,7 +5564,7 @@ async function loadRolesOnce(force) {
   if (!servantsLoadedFlag) await loadServantsOnce();
   try {
     const snap = await countedGetDocs(collection(db,'roles'), 'roles (المستخدمين والأدوار)');
-    allRoles = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    allRoles = snap.docs.map(d => { const x = { id:d.id, ...d.data() }; if (x.isSupervisor || x.type === 'classSupervisor') { x.isSupervisor = false; x.type = 'classServant'; } return x; });
     rolesLoadedFlag = true;
     renderRolesList();
     if (document.getElementById('monitor-subtab-servants')?.style.display === 'block') renderServantsList();
@@ -5594,7 +5585,7 @@ let peopleRoleFilter = 'all';     // 'all' | 'admin' | 'none' | classId
 let peopleView = [];              // آخر قايمة اتعرضت (بنستخدم الـ index بتاعها في الـ onclick)
 let roleChooserMode = 'add';
 const escH = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-const roleTypeOf = r => r.type || (r.isAdmin ? 'admin' : (r.isSupervisor ? 'classSupervisor' : 'classServant'));
+const roleTypeOf = r => r.isAdmin ? 'admin' : 'classServant';
 
 window.setRolesPane = (p) => { rolesPane = p; renderRolesList(); };
 window.openRoleEditorFromList = (roleId, e) => { if (e) e.stopPropagation(); openRoleEditor(roleId); };
@@ -5842,7 +5833,7 @@ window.confirmServantsImport = async () => {
 window.openRoleEditor = (roleId) => {
   editingRoleId = roleId || '';
   const r = editingRoleId ? allRoles.find(x => x.id === editingRoleId) : null;
-  editingRoleType = r ? (r.type || (r.isAdmin ? 'admin' : (r.isSupervisor ? 'classSupervisor' : 'classServant'))) : 'classServant';
+  editingRoleType = r ? (r.isAdmin ? 'admin' : 'classServant') : 'classServant';
   editingRoleClasses = (r && Array.isArray(r.classes)) ? [...r.classes] : [];
   editingRoleMemberIds = editingRoleId ? cachedServants.filter(s => servantInRole(s, editingRoleId)).map(s => s.id) : [];
   editingRolePendingNames = (r && Array.isArray(r.pendingNames)) ? [...r.pendingNames] : [];
@@ -6073,7 +6064,7 @@ window.removeRolePendingName = (name) => {
 window.saveRole = async () => {
   if (editingRoleType !== 'admin' && !editingRoleClasses.length) { showToast('اختار الفصل / الفصول الأول', 'error'); return; }
   const isAdmin = editingRoleType === 'admin';
-  const isSupervisor = editingRoleType === 'classSupervisor';
+  const isSupervisor = false;
   const classesLabel = isAdmin ? '' : editingRoleClasses.map(c => classLabel(c)).join(' + ');
   const name = isAdmin ? 'أدمن' : `${ROLE_TYPE_SHORT[editingRoleType]} — ${classesLabel}`;
   // حماية: أي دور مسؤول/أدمن لازم تشوف بالظبط مين هياخد الصلاحية قبل الحفظ
