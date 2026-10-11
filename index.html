@@ -4030,11 +4030,12 @@ function buildAttSheet(expAtt) {
 
 // بيبني شيت بيانات المخدومين (بروفايل كامل: النوع، العنوان، التليفونات، ملاحظات الافتقاد)
 function buildStudentsSheet() {
-  const row1 = ['الاسم','الفصل','ملاحظات','تليفون الأب','تليفون الأم','تليفون المخدوم','أرقام أخرى'];
+  const row1 = ['الاسم','اسم الأم','الفصل','ملاحظات','تليفون الأب','تليفون الأم','تليفون المخدوم','أرقام أخرى'];
   const rows = [...exportTargetStudents()]
     .sort((a,b) => a.name.localeCompare(b.name,'ar'))
     .map(s => [
       s.name || '',
+      s.motherName || '',
       s.classSection ? classLabel(s.classSection) : '',
       s.address || '',
       s.fatherPhone || '',
@@ -4043,7 +4044,7 @@ function buildStudentsSheet() {
       (hasRolePhones(s) ? (s.otherPhones||[]) : (s.phones||[])).filter(Boolean).join(' / ')
     ]);
   const ws = XLSX.utils.aoa_to_sheet([row1, ...rows]);
-  ws['!cols'] = [{wch:26},{wch:14},{wch:26},{wch:16},{wch:16},{wch:16},{wch:22}];
+  ws['!cols'] = [{wch:26},{wch:22},{wch:14},{wch:26},{wch:16},{wch:16},{wch:16},{wch:22}];
   ws['!views'] = [{ rightToLeft: true }];
 
   const border = { top:{style:'thin',color:{rgb:'D9D9D9'}}, bottom:{style:'thin',color:{rgb:'D9D9D9'}}, left:{style:'thin',color:{rgb:'D9D9D9'}}, right:{style:'thin',color:{rgb:'D9D9D9'}} };
@@ -4059,7 +4060,7 @@ function buildStudentsSheet() {
     for (let c = 0; c < row1.length; c++) {
       const addr = XLSX.utils.encode_cell({ r, c });
       if (!ws[addr]) continue;
-      const align = { horizontal: c===0 || c===4 ? 'right' : 'center', vertical:'center' };
+      const align = { horizontal: c===0 || c===1 || c===3 ? 'right' : 'center', vertical:'center' };
       ws[addr].s = fill ? { alignment: align, border, fill } : { alignment: align, border };
     }
   }
