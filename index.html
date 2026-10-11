@@ -1336,7 +1336,7 @@ const app  = initializeApp(firebaseConfig, 'prep-girls-app');
 const isLocalDevelopment = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
 // ✏️ App Check اختياري: لو فعّلته في Firebase console حط هنا Site key الخاص بمشروعك الجديد (reCAPTCHA Enterprise).
 // سيبه فاضي لو مش مفعّله، والبرنامج هيشتغل عادي.
-const RECAPTCHA_SITE_KEY = '';
+const RECAPTCHA_SITE_KEY = '6Le_8uktAAAAACBWXqGADoPshcKYYGh2Fv22tdd4';
 if (!isLocalDevelopment && RECAPTCHA_SITE_KEY) {
   initializeAppCheck(app, {
     provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY),
