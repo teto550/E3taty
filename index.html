@@ -437,6 +437,8 @@ body{background:var(--bg)}
 [data-actc] .serv-att-check:not(.checked),#tab-monitor [data-actc] .serv-att-check:not(.checked){background:rgba(var(--c),.18);border:2px solid rgba(var(--c),.85)}
 #serv-att-activity-chips .tab.active,#class-serv-att-activity-chips .tab.active{background:rgb(var(--c));border:1px solid rgb(var(--c));color:#fff;font-weight:900;box-shadow:0 4px 14px rgba(var(--c),.4);animation:none}
 [data-actc] .serv-att-check.checked,#tab-monitor [data-actc] .serv-att-check.checked{background:rgb(var(--c));border-color:rgb(var(--c));box-shadow:0 0 12px rgba(var(--c),.45)}
+#settings-modal .modal-box{align-self:flex-start;width:100%;margin-bottom:24px}
+#settings-modal{-webkit-overflow-scrolling:touch}
 </style>
 </head>
 <body>
@@ -1130,7 +1132,7 @@ body{background:var(--bg)}
         <p id="settings-bio-status" style="font-size:12px;color:var(--text-dim);margin:0 0 10px;line-height:1.7"></p>
         <div id="settings-bio-pass-wrap" style="display:none">
           <label class="field-label">اكتب كلمة المرور بتاعتك للتأكيد</label>
-          <input type="password" id="settings-bio-pass" class="field-input" dir="ltr" placeholder="••••••••" autocomplete="current-password">
+          <input type="password" id="settings-bio-pass" class="field-input" dir="ltr" placeholder="••••••••" autocomplete="current-password" enterkeyhint="done" onkeydown="if(event.key==='Enter'){event.preventDefault();toggleBioFromSettings()}" onfocus="setTimeout(()=>document.getElementById('settings-bio-btn').scrollIntoView({block:'center',behavior:'smooth'}),350)">
         </div>
         <button class="export-btn" id="settings-bio-btn" onclick="toggleBioFromSettings()" style="width:100%"></button>
       </div>
@@ -2213,6 +2215,7 @@ window.toggleBioFromSettings = async () => {
     document.getElementById('settings-bio-btn').textContent = '✔ تأكيد وتفعيل';
     document.getElementById('settings-bio-pass').focus();
     window._bioSettingsStep = 'confirm';
+    setTimeout(() => document.getElementById('settings-bio-btn').scrollIntoView({ block:'center', behavior:'smooth' }), 350);
     return;
   }
   // confirm: بنطلب البصمة فورًا (جوه ضغطة الزرار)، وبعدها نتأكد من الباسورد ونحفظ
