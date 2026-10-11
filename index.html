@@ -96,6 +96,8 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-h
 .tpl-save-btn{background:rgba(124,92,191,0.12);border:1px solid rgba(124,92,191,0.3);border-radius:8px;color:var(--accent2);font-family:'Cairo',sans-serif;font-size:12px;font-weight:700;padding:6px 12px;cursor:pointer;white-space:nowrap;}
 .tpl-empty{font-size:12px;color:var(--text-dim);}
 .student-item.present{border-color:rgba(46,204,113,0.35);}
+@keyframes remoteFlash{0%{box-shadow:0 0 0 0 rgba(46,204,113,.7);transform:scale(1.02)}100%{box-shadow:0 0 0 14px rgba(46,204,113,0);transform:scale(1)}}
+.student-item.remote-flash{animation:remoteFlash 1.2s ease-out 2}
 .s-avatar{width:40px;height:40px;border-radius:11px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:var(--accent);flex-shrink:0;}
 .student-item.present .s-avatar{background:rgba(46,204,113,0.12);color:var(--success);}
 .serv-att-check{width:26px;height:26px;border-radius:7px;border:2px solid var(--border);flex-shrink:0;position:relative;}
@@ -3475,17 +3477,35 @@ function stopTodayListeners() {
   if (todayAttendanceUnsub) { todayAttendanceUnsub(); todayAttendanceUnsub = null; todayAttSyncAt = Date.now(); }
 }
 let attListenKey = null;
+let todayAttendanceBy = {}, attFirstSnap = true, remoteFlash = new Set();
 function listenTodayAttendance() {
   if (todayAttendanceUnsub) { todayAttendanceUnsub(); todayAttendanceUnsub = null; }
   const today = todayKey();
   attListenKey = today;
+  attFirstSnap = true;
   todayAttendanceUnsub = onSnapshot(
     todayQuery('attendance', today),
     snap => {
       countSnapshotReads('attendance (اليوم - live)', snap);
       const prevA = todayAttendance, prevAT = todayAttendanceTime;
-      todayAttendance = {}; todayAttendanceTime = {};
-      snap.docs.forEach(d => { todayAttendance[d.data().studentId] = d.id; todayAttendanceTime[d.data().studentId] = tsToMillis(d.data().timestamp); });
+      todayAttendance = {}; todayAttendanceTime = {}; todayAttendanceBy = {};
+      snap.docs.forEach(d => { const x = d.data(); todayAttendance[x.studentId] = d.id; todayAttendanceTime[x.studentId] = tsToMillis(x.timestamp); if (x.byName) todayAttendanceBy[x.studentId] = x.byName; });
+      // إشعار لحظي لما خادمة تانية تسجّل/تشيل حضور من جهاز تاني (مش أول تحميل، ومش تغييراتي أنا)
+      if (!attFirstSnap && !snap.metadata.fromCache) {
+        const added = [], removed = [];
+        snap.docChanges().forEach(ch => {
+          const x = ch.doc.data(); if (ch.doc.metadata.hasPendingWrites) return;
+          if (ch.type === 'added' && x.byUid !== currentUid && tsToMillis(x.timestamp) > Date.now() - 120000) added.push(x); // بس التسجيلات الجديدة فعلًا (آخر دقيقتين)
+          else if (ch.type === 'removed' && prevA[x.studentId] && !window._myRemovals?.has(x.studentId)) removed.push(x);
+        });
+        const nm = x => (allStudents.find(s => s.id === x.studentId)?.name) || 'مخدوم';
+        added.forEach(x => remoteFlash.add(x.studentId));
+        if (added.length === 1) showToast(`✅ ${added[0].byName || 'خادمة'} سجّلت حضور ${nm(added[0])}`, 'success');
+        else if (added.length > 1) showToast(`✅ ${added.length} حضور جديد من خدام تانيين`, 'success');
+        else if (removed.length === 1) showToast(`↩️ اتشال حضور ${nm(removed[0])}`, 'info');
+        if (added.length) setTimeout(() => { remoteFlash.clear(); renderTodayList(); }, 2200);
+      }
+      if (!snap.metadata.fromCache) attFirstSnap = false;
       for (const id in prevA) if (outsideAllowed(id) && !todayAttendance[id]) { todayAttendance[id] = prevA[id]; todayAttendanceTime[id] = prevAT[id]; }
       if (!allAttendance[today]) allAttendance[today] = {};
       allAttendance[today] = { ...todayAttendance };
@@ -3508,7 +3528,10 @@ setInterval(() => {
 
 async function markPresent(studentId) {
   if (todayAttendance[studentId]) return false;
-  const ref = await addDoc(collection(db,'attendance'), { studentId, date:todayKey(), classSection: clsOf(studentId), timestamp:serverTimestamp() });
+  const attId = todayKey() + '_' + studentId; // نفس المعرّف من أي جهاز = مفيش تسجيل مزدوج لو اتنين سجّلوا نفس المخدوم في نفس اللحظة
+  const ref = doc(db,'attendance', attId);
+  await setDoc(ref, { studentId, date:todayKey(), classSection: clsOf(studentId), timestamp:serverTimestamp(), byUid: currentUid || '', byName: currentName || '' });
+  todayAttendanceBy[studentId] = currentName || '';
   todayAttendance[studentId] = ref.id;
   todayAttendanceTime[studentId] = Date.now();
   if (!allAttendance[todayKey()]) allAttendance[todayKey()] = {};
@@ -3521,6 +3544,7 @@ window.removeAttendance = async (studentId) => {
   const s = allStudents.find(x => x.id === studentId);
   if (!confirm(`هتشيل حضور "${s?.name}" من النهارده؟`)) return;
   const docId = todayAttendance[studentId];
+  (window._myRemovals = window._myRemovals || new Set()).add(studentId); setTimeout(() => window._myRemovals.delete(studentId), 5000);
   if (docId) await deleteDoc(doc(db,'attendance',docId));
   delete todayAttendance[studentId];
   delete todayAttendanceTime[studentId];
@@ -3565,10 +3589,12 @@ function renderTodayList() {
 
   cont.innerHTML = sorted.map(s => {
     const present = !!todayAttendance[s.id];
-    return `<div class="student-item ${present?'present':''}">
+    const by = present ? todayAttendanceBy[s.id] : '';
+    return `<div class="student-item ${present?'present':''}${remoteFlash.has(s.id)?' remote-flash':''}">
       ${studentAvatarHTML(s,'s-avatar')}
       <div class="s-info">
         <div class="s-name">${s.name}</div>
+        ${by ? `<div class="s-sub">✔ ${String(by).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>` : ''}
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
         <div class="check-box att-box${present?' checked':''}" onclick="${present?`removeAttendance('${s.id}')`:`quickToggleAttendance('${s.id}')`}">${present?'✓':''}</div>
