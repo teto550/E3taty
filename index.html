@@ -5261,7 +5261,7 @@ const DASH_SECTIONS = [
   { id:'kpi',     name:'📋 ملخص عام',                  desc:'عدد الخادمات والمخدومين والفصول ومتوسط المخدومين للخادمة' },
   { id:'ssc',     name:'📖 الأكثر حضورًا لمدارس الأحد',  desc:'ترتيب الخادمات حسب عدد مرات حضور مدارس الأحد' },
   { id:'meeting', name:'🤝 الأكثر حضورًا لاجتماع الخادمات', desc:'ترتيب الخادمات حسب عدد مرات حضور الاجتماع' },
-  { id:'prep',    name:'📝 الأكثر حضورًا للتحضير',       desc:'ترتيب الخادمات حسب عدد مرات حضور التحضير' },
+  { id:'prep',    name:'📝 الأكثر تحضيرًا',       desc:'ترتيب الخادمات حسب عدد مرات حضور التحضير' },
   { id:'total',   name:'🏆 إجمالي الحضور',              desc:'مجموع حضور كل خادمة (مدارس أحد + اجتماع + تحضير)' },
   { id:'classes', name:'🏫 توزيع الخادمات على الفصول',     desc:'عدد الخادمات والمخدومين في كل فصل ونسبة المخدومين لكل خادمة' },
   { id:'noAtt',   name:'⏳ خادمات مسجلوش حضور',           desc:'خادمات معتمدين ملهمش أي حضور متسجل لسه' },
@@ -5340,7 +5340,7 @@ function buildDashboardHTML() {
   }
   if (active.includes('ssc'))     out += dashCard('📖 الأكثر حضورًا لمدارس الأحد', dashBarChart(rowsBy('ssc'), 'var(--success)'));
   if (active.includes('meeting')) out += dashCard('🤝 الأكثر حضورًا لاجتماع الخادمات', dashBarChart(rowsBy('meeting'), 'var(--accent)'));
-  if (active.includes('prep'))    out += dashCard('📝 الأكثر حضورًا للتحضير', dashBarChart(rowsBy('prep'), '#f1c40f'));
+  if (active.includes('prep'))    out += dashCard('📝 الأكثر تحضيرًا', dashBarChart(rowsBy('prep'), '#f1c40f'));
   if (active.includes('total'))   out += dashCard('🏆 إجمالي الحضور', dashBarChart(rowsBy('total'), 'var(--accent2)'));
 
   if (active.includes('classes')) {
