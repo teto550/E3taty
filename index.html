@@ -7,6 +7,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="خدمة فتيات إعدادي">
+<script>
+// بنلقط إشارة التثبيت بدري جدًا (قبل ما باقي الصفحة تتحمّل) عشان كروم أحيانًا بيبعتها بدري ولو اتأخرنا بتضيع
+window.__bip = null; window.__bipFired = false;
+window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__bip = e; window.__bipFired = true; if (window.__onBip) window.__onBip(e); });
+</script>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-193.png">
 <title>خدمة فتيات إعدادي</title>
@@ -6257,7 +6262,7 @@ document.addEventListener('pointerdown', e => {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
 }
-let deferredPrompt;
+let deferredPrompt = window.__bip;
 const IS_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const IS_INAPP = /FBAN|FBAV|FB_IAB|Instagram|Messenger|WhatsApp|Line\/|Snapchat|TikTok|; wv\)/i.test(navigator.userAgent);
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -6296,7 +6301,8 @@ function showInstallHelp(kind) {
   const steps = {
     ios: ['افتح البرنامج في <b>Safari</b> (مش من جوه واتساب أو فيسبوك)', 'دوس على زرار <b>المشاركة</b> <span style="font-size:20px">⬆️</span> اللي في الشريط تحت', 'اسحب لتحت واختار <b>Add to Home Screen</b> (إضافة إلى الشاشة الرئيسية)', 'دوس <b>Add</b> (إضافة)'],
     inapp: ['إنت فاتح البرنامج من جوه تطبيق تاني (واتساب / فيسبوك…) وده مبيسمحش بالتثبيت', 'دوس على <b>⋮</b> أو <b>…</b> واختار <b>فتح في المتصفح</b> (Open in browser)', IS_IOS ? 'اتأكد إنه اتفتح في <b>Safari</b> وبعدين اتبع خطوات التثبيت' : 'بعد ما يفتح في <b>Chrome</b> دوس على زرار <b>تثبيت</b> تاني'],
-    android: ANDROID_STEPS[detectBrowser()] || ANDROID_STEPS.other
+    android: ANDROID_STEPS[detectBrowser()] || ANDROID_STEPS.other,
+    desktop: ['دوس على <b>أيقونة التثبيت</b> 🖥️ اللي في آخر شريط العنوان (جنب النجمة)', 'أو من <b>⋮</b> ← <b>حفظ ومشاركة</b> ← <b>تثبيت الصفحة كتطبيق</b> (Install page as app)', 'دوس <b>تثبيت</b>']
   }[kind];
   const d = document.createElement('div');
   d.id = 'install-help';
@@ -6316,26 +6322,61 @@ function showInstallHelp(kind) {
   const dbg = document.createElement('div');
   dbg.style.cssText = 'font-size:11px;color:var(--text-dim,#999);margin:-6px 0 12px;line-height:1.7';
   d.firstElementChild.insertBefore(dbg, d.firstElementChild.querySelector('button'));
-  const line = sw => dbg.textContent = 'تشخيص: المتصفح ' + br + ' — service worker: ' + sw + ' — إشارة التثبيت من المتصفح: ' + (deferredPrompt ? 'وصلت' : 'لسه مجتش') + ' — شغال كتطبيق مثبّت: ' + (isStandalone() ? 'أيوه' : 'لأ') + ' — UA: ' + ua.replace(/^Mozilla\/5\.0 /, '').slice(0, 120);
+  const line = sw => dbg.textContent = 'تشخيص: المتصفح ' + br + ' — service worker: ' + sw + ' — إشارة التثبيت من المتصفح: ' + (deferredPrompt ? 'وصلت' : (window.__bipFired ? 'وصلت واتستخدمت' : 'لسه مجتش')) + ' — شغال كتطبيق مثبّت: ' + (isStandalone() ? 'أيوه' : 'لأ') + ' — UA: ' + ua.replace(/^Mozilla\/5\.0 /, '').slice(0, 120);
   line('...');
   (navigator.serviceWorker ? navigator.serviceWorker.getRegistration() : Promise.resolve(null))
     .then(r => line(r ? 'شغال' : 'مش متسجّل')).catch(() => line('خطأ'));
 }
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; checkShowBanner(); });
-document.getElementById('install-btn').addEventListener('click', async () => {
-  if (deferredPrompt) {                       // تثبيت مباشر بضغطة واحدة
-    const promptEvent = deferredPrompt;
+window.__onBip = e => { deferredPrompt = e; checkShowBanner(); };
+if (deferredPrompt) checkShowBanner(); // الإشارة وصلت قبل ما السكربت ده يشتغل
+const IS_ANDROID = /Android/i.test(navigator.userAgent);
+const isRealChrome = () => detectBrowser() === 'chrome' && !IS_INAPP;
+let installPromptPending = false;
+async function runInstallPrompt() {          // تثبيت مباشر بضغطة واحدة
+  const pe = deferredPrompt;
+  if (!pe || installPromptPending) return;
+  installPromptPending = true;
+  try {
+    pe.prompt();
+    const { outcome } = await pe.userChoice;
+    deferredPrompt = null;                   // الإشارة بتتستخدم مرة واحدة؛ كروم ممكن يبعتها تاني لوحده (بنلقطها في __onBip)
+    if (outcome === 'accepted') hideInstallBanner();
+  } catch (err) {
     deferredPrompt = null;
-    promptEvent.prompt();
-    await promptEvent.userChoice;
-    hideInstallBanner();
-  } else if (IS_INAPP) {
-    showInstallHelp('inapp');
-  } else if (IS_IOS) {                        // آبل مبتسمحش بتثبيت مباشر من زرار، فبنعرض الخطوات
-    showInstallHelp('ios');
-  } else {                                    // أي موبايل تاني (Samsung / Firefox / كروم لسه ما بعتش الإشارة): خطوات التثبيت اليدوي
-    showInstallHelp('android');
-  }
+    showInstallHelp(IS_ANDROID ? 'android' : 'desktop');
+  } finally { installPromptPending = false; }
+}
+// بيستنى إشارة التثبيت من كروم لحد ms (أحيانًا بتتأخر ثواني بعد فتح الصفحة)
+function waitForInstallPrompt(ms) {
+  return new Promise(res => {
+    if (deferredPrompt) return res(deferredPrompt);
+    const h = () => { clearTimeout(t); setTimeout(() => res(deferredPrompt), 0); };
+    const t = setTimeout(() => { window.removeEventListener('beforeinstallprompt', h); res(null); }, ms);
+    window.addEventListener('beforeinstallprompt', h, { once: true });
+  });
+}
+// أندرويد: أي متصفح غير كروم (أو جوه واتساب/فيسبوك) مبيبعتش إشارة التثبيت، فبنفتح نفس الصفحة في Chrome ومن هناك التثبيت بضغطة
+function openInChrome() {
+  const u = new URL(location.href); u.hash = '';
+  const intent = 'intent://' + u.host + u.pathname + u.search + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(u.href + '#nochrome') + ';end';
+  let left = false;
+  window.addEventListener('pagehide', () => { left = true; }, { once: true });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) left = true; });
+  location.href = intent;
+  setTimeout(() => { if (!left) showInstallHelp(IS_INAPP ? 'inapp' : 'android'); }, 1800); // لو كروم مش موجود أو الفتح اتمنع: نعرض الخطوات
+}
+document.getElementById('install-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('install-btn');
+  if (installPromptPending) return;           // نافذة التثبيت مفتوحة بالفعل (شوفها جنب شريط العنوان)
+  if (deferredPrompt) return runInstallPrompt();
+  if (IS_INAPP && !IS_ANDROID) return showInstallHelp('inapp');
+  if (IS_IOS) return showInstallHelp('ios');   // آبل مبتسمحش بتثبيت مباشر من زرار، فبنعرض الخطوات
+  if (IS_ANDROID && !isRealChrome()) return openInChrome();
+  // كروم فعلًا بس الإشارة لسه ما وصلتش: بنستنى ثواني قبل ما نعرض الخطوات اليدوي
+  const label = btn.textContent; btn.disabled = true; btn.textContent = '...';
+  const pe = await waitForInstallPrompt(3500);
+  btn.disabled = false; btn.textContent = label;
+  if (pe) runInstallPrompt(); else showInstallHelp(IS_ANDROID ? 'android' : 'desktop');
 });
 window.addEventListener('appinstalled', hideInstallBanner);
 // البانر لازم يظهر على أي موبايل مش مثبّت عليه البرنامج — مش بس لما كروم يبعت الإشارة (واتساب/فيسبوك/Samsung/Firefox مبيبعتوهاش)
