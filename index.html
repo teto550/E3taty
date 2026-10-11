@@ -2722,7 +2722,7 @@ async function loadStudents(force = false) {
   const usable = cached && !force && Array.isArray(cached.list) && (cached.scope || '') === scopeKey && (rev !== null ? cached.delRev === delRev : (Date.now() - cached.ts < 12*3600*1000));
   if (usable && (rev === null || cached.rev === rev)) {
     allStudents = cached.list;
-  } else if (usable) {
+  } else if (usable && (currentRole === 'admin' || !scope.length)) { // الخادمة المقيّدة بفصول بتعمل تحميل كامل لفصولها (صغير) بدل التحديث التزايدي، لأن الـ Rules بتمنع استعلام مش مقيّد بالفصل
     try {
       const since = Timestamp.fromMillis(Math.max(0, (cached.maxUpd || 0) - 60000)); // هامش دقيقة للأمان
       const snap = await countedGetDocs(query(collection(db,'students'), where('updatedAt','>=', since)), 'students (تحديث بالتغييرات بس)');
@@ -3438,7 +3438,8 @@ async function _ensureRecentAttendance(weeks) {
 }
 const studentHist = {};
 async function loadStudentHist(id) {
-  const a = await countedGetDocs(query(collection(db,'attendance'), where('studentId','==',id)), 'attendance (بروفايل مخدوم)');
+  const hs = currentRole !== 'admin' ? readScopeClasses() : [];
+  const a = await countedGetDocs(hs.length ? query(collection(db,'attendance'), where('studentId','==',id), where('classSection','in', hs)) : query(collection(db,'attendance'), where('studentId','==',id)), 'attendance (بروفايل مخدوم)');
   const H = { att:{}, ts: Date.now() };
   a.docs.forEach(x => { H.att[x.data().date] = x.id; });
   studentHist[id] = H;
@@ -6309,10 +6310,14 @@ document.getElementById('install-btn').addEventListener('click', async () => {
     showInstallHelp('inapp');
   } else if (IS_IOS) {                        // آبل مبتسمحش بتثبيت مباشر من زرار، فبنعرض الخطوات
     showInstallHelp('ios');
+  } else {                                    // أي موبايل تاني (Samsung / Firefox / كروم لسه ما بعتش الإشارة): خطوات التثبيت اليدوي
+    showInstallHelp('android');
   }
 });
 window.addEventListener('appinstalled', hideInstallBanner);
-if (IS_IOS) checkShowBanner();
+// البانر لازم يظهر على أي موبايل مش مثبّت عليه البرنامج — مش بس لما كروم يبعت الإشارة (واتساب/فيسبوك/Samsung/Firefox مبيبعتوهاش)
+const IS_MOBILE = IS_IOS || /Android|Mobile/i.test(navigator.userAgent);
+if (IS_MOBILE) checkShowBanner();
 </script>
 </body>
 </html>

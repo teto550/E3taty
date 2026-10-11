@@ -8,6 +8,10 @@ service cloud.firestore {
     function myDoc() { return get(/databases/$(database)/documents/servants/$(request.auth.uid)).data; }
     function isApproved() { return hasServantDoc() && myDoc().status == 'approved'; }
     function isAdmin() { return isApproved() && myDoc().role == 'admin'; }
+    // فصول الخادمة (assignedClass = ids مفصولة بفاصلة، نفس اللي بتحسبه الواجهة من الأدوار).
+    // فاضي = ولا فصل (الخادمة من غير فصل مش بتشوف أي مخدومين). الأدمن بيشوف الكل.
+    function myClasses() { return myDoc().get('assignedClass', '').split(','); }
+    function classOk(c) { return isAdmin() || (isApproved() && c is string && c != '' && c in myClasses()); }
     // الأدمن الأساسي (نفس ADMIN_EMAILS في index.html) — لازم تتغير هنا لو اتغيرت هناك
     function isPrimaryAdminEmail() {
       return isSignedIn() && request.auth.token.email in ['devidemele@gmail.com'];
@@ -63,18 +67,25 @@ service cloud.firestore {
             && request.resource.data.pendingNames.toSet().difference(resource.data.pendingNames.toSet()).size() == 0);
     }
 
-    // ===== students (المخدومين) =====
+    // ===== students (المخدومين) — الخادمة تقرا وتعدّل مخدومين فصولها بس (classSection) =====
+    // ممنوع تنقل مخدوم لفصل مش بتاعها. الاستعلام لازم يحتوي where('classSection','in',[فصولها]).
     match /students/{id} {
-      allow read: if isApproved();
-      allow create, update: if isApproved();
+      allow read: if classOk(resource.data.get('classSection', ''));
+      allow create: if classOk(request.resource.data.get('classSection', ''));
+      allow update: if classOk(resource.data.get('classSection', ''))
+                    && classOk(request.resource.data.get('classSection', ''));
       allow delete: if isAdmin();
     }
 
-    // ===== attendance (حضور المخدومين) =====
+    // ===== attendance (حضور المخدومين) — بنفس تقييد الفصل (classSection بيتكتب مع كل تسجيل) =====
     match /attendance/{id} {
-      allow read: if isApproved();
-      allow create, update: if isApproved() && request.resource.data.byUid == request.auth.uid;
-      allow delete: if isApproved();
+      allow read: if classOk(resource.data.get('classSection', ''));
+      allow create: if classOk(request.resource.data.get('classSection', ''))
+                    && request.resource.data.byUid == request.auth.uid;
+      allow update: if classOk(resource.data.get('classSection', ''))
+                    && classOk(request.resource.data.get('classSection', ''))
+                    && request.resource.data.byUid == request.auth.uid;
+      allow delete: if classOk(resource.data.get('classSection', ''));
     }
 
     // ===== servantAttendance (حضور الخادمات) — الأدمن بس يسجّل =====
