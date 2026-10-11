@@ -2091,22 +2091,30 @@ async function bioDisable() {
   refreshBioLoginButton();
 }
 // بيسجّل البصمة ويحفظ الإيميل والباسورد مشفّرين بمفتاح غير قابل للتصدير (non-extractable)
-async function bioEnroll(email, pass) {
-  await navigator.credentials.create({ publicKey: {
+// الخطوة 1: طلب البصمة (لازم تتنده مباشرة من ضغطة الزرار، قبل أي انتظار للشبكة)
+function bioCreateCred(email) {
+  return navigator.credentials.create({ publicKey: {
     challenge: crypto.getRandomValues(new Uint8Array(32)),
     rp: { name: 'خدمة فتيات إعدادي', id: location.hostname },
     user: { id: crypto.getRandomValues(new Uint8Array(16)), name: email, displayName: email },
     pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
     authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
     timeout: 60000, attestation: 'none'
-  }}).then(async cred => {
-    const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify({ e: email, p: pass })));
-    await bioIdbSet(BIO_KEY_ID, key);
-    localStorage.setItem(BIO_LS, JSON.stringify({ credId: bioB64.enc(cred.rawId), email, iv: bioB64.enc(iv), ct: bioB64.enc(ct) }));
-  });
+  }});
+}
+// الخطوة 2: حفظ الإيميل والباسورد مشفّرين بمفتاح غير قابل للتصدير (non-extractable)
+async function bioSaveCred(cred, email, pass) {
+  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify({ e: email, p: pass })));
+  await bioIdbSet(BIO_KEY_ID, key);
+  localStorage.setItem(BIO_LS, JSON.stringify({ credId: bioB64.enc(cred.rawId), email, iv: bioB64.enc(iv), ct: bioB64.enc(ct) }));
   localStorage.removeItem(BIO_DECLINED);
+  refreshBioLoginButton();
+}
+async function bioEnroll(email, pass) {
+  const cred = await bioCreateCred(email);
+  await bioSaveCred(cred, email, pass);
 }
 // بيطلب البصمة، ولو نجحت بيفك التشفير ويرجّع الإيميل والباسورد
 async function bioUnlock() {
@@ -2205,14 +2213,31 @@ window.toggleBioFromSettings = async () => {
     window._bioSettingsStep = 'confirm';
     return;
   }
-  // confirm: نتأكد من الباسورد الأول، وبعدين نسجّل البصمة
+  // confirm: بنطلب البصمة فورًا (جوه ضغطة الزرار)، وبعدها نتأكد من الباسورد ونحفظ
   const pass = document.getElementById('settings-bio-pass').value;
   if (!pass) { showToast('اكتب كلمة المرور', 'error'); return; }
+  const btn = document.getElementById('settings-bio-btn');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = '⏳ استنى… اعمل البصمة لما تظهر';
   try {
-    await reauthenticateWithCredential(auth.currentUser, EmailAuthProvider.credential(currentEmail, pass));
-  } catch { showToast('كلمة المرور غلط', 'error'); return; }
-  try { await bioEnroll(currentEmail, pass); showToast('اتفعّلت البصمة ✅', 'success'); }
-  catch (e) { console.error('bio enroll:', e); showToast('معرفناش نفعّل البصمة', 'error'); }
+    const cred = await bioCreateCred(currentEmail);
+    try {
+      await reauthenticateWithCredential(auth.currentUser, EmailAuthProvider.credential(currentEmail, pass));
+    } catch (e) {
+      console.error('bio reauth:', e);
+      showToast(e && e.code === 'auth/network-request-failed' ? 'مفيش نت — حاول تاني' : 'كلمة المرور غلط', 'error');
+      btn.disabled = false; btn.textContent = label; return;
+    }
+    await bioSaveCred(cred, currentEmail, pass);
+    showToast('اتفعّلت البصمة ✅', 'success');
+  } catch (e) {
+    console.error('bio enroll:', e);
+    const n = (e && e.name) || 'error';
+    showToast(n === 'NotAllowedError' ? 'البصمة اتلغت أو اتأخرت — جرب تاني' : 'معرفناش نفعّل البصمة (' + n + ')', 'error');
+  }
+  btn.disabled = false;
   refreshBioSettings();
 };
 
