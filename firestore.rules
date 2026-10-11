@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===== Helpers =====
+    function isSignedIn() { return request.auth != null; }
+    function hasServantDoc() { return isSignedIn() && exists(/databases/$(database)/documents/servants/$(request.auth.uid)); }
+    function myDoc() { return get(/databases/$(database)/documents/servants/$(request.auth.uid)).data; }
+    function isApproved() { return hasServantDoc() && myDoc().status == 'approved'; }
+    function isAdmin() { return isApproved() && myDoc().role == 'admin'; }
+    // الأدمن الأساسي (نفس ADMIN_EMAILS في index.html) — لازم تتغير هنا لو اتغيرت هناك
+    function isPrimaryAdminEmail() {
+      return isSignedIn() && request.auth.token.email in ['devidemele@gmail.com'];
+    }
+
+    // ===== servants (الحسابات) =====
+    match /servants/{uid} {
+      // كل واحدة تقرا حسابها بس، والأدمن يقرا الكل
+      allow get, list: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+
+      // التسجيل: حسابها هي بس، وإجباري pending + servant (ممنوع تسجل نفسها أدمن أو معتمدة).
+      // الاستثناء: الأدمن الأساسي (بإيميله) يقدر ينشئ حسابه كأدمن معتمد.
+      allow create: if isSignedIn() && request.auth.uid == uid && (
+        (request.resource.data.status == 'pending'
+          && request.resource.data.role == 'servant'
+          && request.resource.data.email == request.auth.token.email
+          && !('sscCount' in request.resource.data)
+          && !('meetingCount' in request.resource.data)
+          && !('prepCount' in request.resource.data))
+        || (isPrimaryAdminEmail()
+          && request.resource.data.status == 'approved'
+          && request.resource.data.role == 'admin')
+      );
+
+      // التعديل: الأدمن أي حاجة. صاحبة الحساب بياناتها الشخصية بس (مش الدور/الحالة/الفصول/الأدوار/العدّادات).
+      // الأدمن الأساسي يقدر يرجّع نفسه أدمن معتمد.
+      allow update: if isAdmin()
+        || (isSignedIn() && request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['name', 'phone', 'address', 'lastActive']))
+        || (isPrimaryAdminEmail() && request.auth.uid == uid
+            && request.resource.data.role == 'admin'
+            && request.resource.data.status == 'approved');
+
+      allow delete: if isAdmin();
+    }
+
+    // ===== classes (الفصول) — بتتقرا في فورم التسجيل قبل تسجيل الدخول، والأدمن بس يعدّل =====
+    match /classes/{classId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ===== roles (الأدوار + قايمة الأسماء الجاهزة) =====
+    // القراءة مفتوحة عشان فورم التسجيل يعرض "اختار اسمك". الأدمن بس يكتب،
+    // وأي حساب مسجل يقدر بس يشيل اسمه من pendingNames (بعد ما يسجل مباشرة).
+    match /roles/{roleId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (isSignedIn()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingNames'])
+            && request.resource.data.pendingNames.toSet().difference(resource.data.pendingNames.toSet()).size() == 0);
+    }
+
+    // ===== students (المخدومين) =====
+    match /students/{id} {
+      allow read: if isApproved();
+      allow create, update: if isApproved();
+      allow delete: if isAdmin();
+    }
+
+    // ===== attendance (حضور المخدومين) =====
+    match /attendance/{id} {
+      allow read: if isApproved();
+      allow create, update: if isApproved() && request.resource.data.byUid == request.auth.uid;
+      allow delete: if isApproved();
+    }
+
+    // ===== servantAttendance (حضور الخادمات) — الأدمن بس يسجّل =====
+    match /servantAttendance/{id} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+
+    // ===== messageTemplates =====
+    match /messageTemplates/{id} {
+      allow read, write: if isApproved();
+    }
+
+    // ===== activityLog =====
+    match /activityLog/{id} {
+      allow read: if isAdmin();
+      allow create: if isApproved() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // ===== config (عدّادات التحديث) =====
+    match /config/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin()
+        || (isApproved() && docId == 'meta'
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['studentsRev', 'studentsDelRev', 'classFieldMig']));
+    }
+
+    // أي حاجة تانية: ممنوعة
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

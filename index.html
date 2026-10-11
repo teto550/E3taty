@@ -1587,6 +1587,9 @@ function tsToMillis(ts) {
   return Date.now();
 }
 let todayAttendanceUnsub = null; // بث لحظي لحضور النهارده — يخلي كل خادمة يشوف تحديثات الخادمة التاني فوراً
+// تنظيف أي نص جاي من مستخدمين قبل ما يتحط في innerHTML (حماية من XSS) — eh للـ HTML، ja للنص اللي جوه onclick='...'
+const eh = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const ja = t => eh(String(t == null ? '' : t).replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
 let currentUid = null, currentName = '', currentRole = 'servant', currentEmail = '';
 let currentSupervisorClass = ''; // الفصول اللي الخادمة مسؤولة عنها (ممكن تبقى جزء من فصوله)
 let currentAssignedClass = ''; // 'a' | 'b' | 'kg' | 'a,b' | '' — الفصول اللي الأدمن حدده للخادمة من تبويب "متابعة" (فاضي = مقيدش، بيشوف كل الفصول)
@@ -2017,7 +2020,7 @@ function renderSettingsPeopleList() {
     }
     return `<div class="servant-item" style="flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--border)">
       <div class="s-info">
-        <div class="s-name">${s.name||'—'}${s.role==='admin'?' 👑':s.role==='supervisor'?' 🗝️':''}</div>
+        <div class="s-name">${eh(s.name||'—')}${s.role==='admin'?' 👑':s.role==='supervisor'?' 🗝️':''}</div>
         <div class="s-sub">${assigned.length ? formatAssignedClasses(s.assignedClass) : 'كل الفصول'}</div>
       </div>
       ${adminBtn}
@@ -2287,7 +2290,7 @@ window.onRegClassChange = () => {
   const names = uniqueNames(rawNames); // نفس الاسم ممكن يبقى في أكتر من دور في الفصل (مسؤول + خادمة) — بيظهر مرة واحدة بس
   names.sort((a,b) => a.localeCompare(b,'ar'));
   let html = names.length
-    ? `<option value="">— اختار اسمك —</option>` + names.map(n => `<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('')
+    ? `<option value="">— اختار اسمك —</option>` + names.map(n => `<option value="${eh(n)}">${eh(n)}</option>`).join('')
     : `<option value="">مفيش أسماء متاحة للفصل ده، كلم الأدمن</option>`;
   nameSel.innerHTML = html;
 };
@@ -2989,12 +2992,12 @@ function renderStudentsList() {
     const classBadge = classBadgeHTML(s.classSection);
     return `<div class="student-item">
       <div class="s-info">
-        <div class="s-name">${s.name}</div>
+        <div class="s-name">${eh(s.name)}</div>
         <div class="s-sub" style="margin-top:3px">${classBadge}</div>
       </div>
       <button class="action-btn" onclick="openProfile('${s.id}')">👤</button>
       <button class="action-btn" onclick="openEditModal('${s.id}')">✏️</button>
-      ${canDeleteStudent() ? `<button class="del-btn" onclick="deleteStudent('${s.id}','${s.name}')">🗑</button>` : ''}
+      ${canDeleteStudent() ? `<button class="del-btn" onclick="deleteStudent('${s.id}','${ja(s.name)}')">🗑</button>` : ''}
     </div>`;
   }).join('');
 }
@@ -3090,7 +3093,7 @@ function renderWaTemplatesList() {
   }
   cont.innerHTML = `<div class="tpl-row">` + waTemplates.map(t => `
     <div class="tpl-chip" onclick="useWaTemplate('${t.id}')">
-      <span class="tpl-chip-name">${t.name}</span>
+      <span class="tpl-chip-name">${eh(t.name)}</span>
       <button type="button" class="tpl-chip-del" onclick="event.stopPropagation();deleteWaTemplate('${t.id}')">✕</button>
     </div>`).join('') + `</div>`;
 }
@@ -3227,7 +3230,7 @@ function renderWaRecipientsList() {
       return `<div class="wa-recipient-row ${!phone?'no-phone':''}">
         <input type="checkbox" ${checked?'checked':''} ${!phone?'disabled':''} onchange="toggleWaRecipient('${s.id}', this.checked)">
         <div class="s-info">
-          <div class="s-name">${s.name}</div>
+          <div class="s-name">${eh(s.name)}</div>
           <div class="s-sub">${phone ? phone : 'لا يوجد رقم تليفون'}</div>
         </div>
         <button type="button" title="${added ? 'اتضاف للجروب — دوس تشيل العلامة' : 'اعلّمه كمتضاف للجروب'}"
@@ -3588,7 +3591,7 @@ function renderTodayList() {
     return `<div class="student-item ${present?'present':''}${remoteFlash.has(s.id)?' remote-flash':''}">
       ${studentAvatarHTML(s,'s-avatar')}
       <div class="s-info">
-        <div class="s-name">${s.name}</div>
+        <div class="s-name">${eh(s.name)}</div>
         ${by ? `<div class="s-sub">✔ ${String(by).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>` : ''}
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
@@ -3634,7 +3637,7 @@ window.onManualSearch = () => {
     if (!s.classSection) {
       return `<div class="result-item" style="cursor:default;flex-wrap:wrap">
         ${studentAvatarHTML(s,'result-avatar')}
-        <div style="flex:1;font-size:14px;font-weight:700;min-width:100%">${s.name} <span style="color:var(--text-dim);font-weight:600;font-size:11px">— هو في فصل إيه؟</span></div>
+        <div style="flex:1;font-size:14px;font-weight:700;min-width:100%">${eh(s.name)} <span style="color:var(--text-dim);font-weight:600;font-size:11px">— هو في فصل إيه؟</span></div>
         ${classPickButtonsHTML(s.id, pickClasses)}
       </div>`;
     }
@@ -3643,7 +3646,7 @@ window.onManualSearch = () => {
     const classBadge = classBadgeHTML(s.classSection, otherClass);
     return `<div class="result-item" style="cursor:default">
       ${studentAvatarHTML(s,'result-avatar')}
-      <div style="flex:1;font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px">${s.name} ${classBadge}</div>
+      <div style="flex:1;font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px">${eh(s.name)} ${classBadge}</div>
       <div class="check-box att-box${isPresent?' checked':''}" onclick="event.stopPropagation();${isPresent?`removeAttendance('${s.id}')`:`manualMarkAndClear('${s.id}')`}">${isPresent?'✓':''}</div>
     </div>`;
   }).join('');
@@ -3770,7 +3773,7 @@ function renderFilterList() {
     return `<div class="student-item">
       ${studentAvatarHTML(s,'s-avatar')}
       <div class="s-info">
-        <div class="s-name">${s.name}</div>
+        <div class="s-name">${eh(s.name)}</div>
         <div class="s-sub">حضر ${attCount} مرة</div>
       </div>
       <button class="action-btn" onclick="openProfile('${s.id}')">👤 ملف</button>
@@ -4622,10 +4625,10 @@ async function renderServAttList() {
     cont.innerHTML = summary + servants.map(s => {
       const present = presentIds.has(s.id);
       return `
-      <div class="servant-item mon-row ${present ? 'present' : ''}" onclick="toggleServantAttendance('${s.id}','${(s.name||'').replace(/'/g,"\\'")}','${date}')">
+      <div class="servant-item mon-row ${present ? 'present' : ''}" onclick="toggleServantAttendance('${s.id}','${ja(s.name||'')}','${date}')">
         ${servantAvatarHTML(s)}
         <div class="s-info">
-          <div class="mon-name">${s.name||'—'}${servantRoleChip(s)}</div>
+          <div class="mon-name">${eh(s.name||'—')}${servantRoleChip(s)}</div>
           <div class="mon-badges">${servantClassBadges(s)}</div>
         </div>
         <div class="serv-att-check ${present ? 'checked' : ''}"></div>
@@ -4761,7 +4764,7 @@ async function renderClassServAttList() {
     const presentIds = new Set(snap.docs.map(d => d.data().servantId));
     cont.innerHTML = groups.map(g => (allMode ? `<div class="section-title" style="margin:14px 0 8px">${esc(classEmoji(g.cid))} ${esc(classLabel(g.cid))} (${g.list.length})</div>` : '') +
       g.list.map(s => `
-      <div class="servant-item" onclick="toggleClassServantAttendance('${s.id}','${(s.name||'').replace(/'/g,"\\'")}','${date}')" style="cursor:pointer">
+      <div class="servant-item" onclick="toggleClassServantAttendance('${s.id}','${ja(s.name||'')}','${date}')" style="cursor:pointer">
         <div class="s-info">
           <div class="s-name">${esc(s.name)||'—'}</div>
         </div>
@@ -4885,14 +4888,14 @@ function renderSupPending() {
   sec.style.display = mine.length ? '' : 'none';
   const cnt = document.getElementById('sup-pending-count'); if (cnt) cnt.textContent = mine.length;
   const cont = document.getElementById('sup-pending-list'); if (!cont) return;
-  const q = n => String(n||'').replace(/'/g, "\\'");
+  const q = n => ja(n);
   cont.innerHTML = mine.map(s => `
     <div class="servant-item" style="flex-wrap:wrap">
       <div class="s-avatar">${(s.name||'؟').trim()[0]||'؟'}</div>
       <div class="s-info">
-        <div class="s-name">${s.name||'—'} ${s.assignedClass ? classBadgeHTML(s.assignedClass) : ''}</div>
-        <div class="s-sub" dir="ltr" style="text-align:right">${s.email||''}${s.phone ? ' · '+s.phone : ''}</div>
-        ${s.address ? `<div class="s-sub">📍 ${s.address}</div>` : ''}
+        <div class="s-name">${eh(s.name||'—')} ${s.assignedClass ? classBadgeHTML(s.assignedClass) : ''}</div>
+        <div class="s-sub" dir="ltr" style="text-align:right">${eh(s.email||'')}${s.phone ? ' · '+eh(s.phone) : ''}</div>
+        ${s.address ? `<div class="s-sub">📍 ${eh(s.address)}</div>` : ''}
       </div>
       <button class="export-btn" onclick="approveServant('${s.id}','${q(s.name)}','${servantRoleIds(s).join(',')}')">✓ قبول</button>
       <button class="del-btn" onclick="rejectServant('${s.id}','${q(s.name)}','${servantRoleIds(s).join(',')}')">✕ رفض</button>
@@ -4913,12 +4916,12 @@ function renderPendingList(list) {
     <div class="servant-item" style="flex-wrap:wrap">
       <div class="s-avatar">${(s.name||'؟').trim()[0]||'؟'}</div>
       <div class="s-info">
-        <div class="s-name">${s.name||'—'} ${s.assignedClass ? classBadgeHTML(s.assignedClass) : ''}</div>
-        <div class="s-sub" dir="ltr" style="text-align:right">${s.email||''}${s.phone ? ' · '+s.phone : ''}</div>
-        ${s.address ? `<div class="s-sub">📍 ${s.address}</div>` : ''}
+        <div class="s-name">${eh(s.name||'—')} ${s.assignedClass ? classBadgeHTML(s.assignedClass) : ''}</div>
+        <div class="s-sub" dir="ltr" style="text-align:right">${eh(s.email||'')}${s.phone ? ' · '+eh(s.phone) : ''}</div>
+        ${s.address ? `<div class="s-sub">📍 ${eh(s.address)}</div>` : ''}
       </div>
-      <button class="export-btn" onclick="approveServant('${s.id}','${(s.name||'').replace(/'/g,"\\'")}','${servantRoleIds(s).join(',')}')">✓ قبول</button>
-      <button class="del-btn" onclick="rejectServant('${s.id}','${(s.name||'').replace(/'/g,"\\'")}','${servantRoleIds(s).join(',')}')">✕ رفض</button>
+      <button class="export-btn" onclick="approveServant('${s.id}','${ja(s.name||'')}','${servantRoleIds(s).join(',')}')">✓ قبول</button>
+      <button class="del-btn" onclick="rejectServant('${s.id}','${ja(s.name||'')}','${servantRoleIds(s).join(',')}')">✕ رفض</button>
     </div>`).join('');
 }
 
@@ -4952,7 +4955,7 @@ function renderServantsList(list) {
       <div class="servant-item mon-row" onclick="openServantProfile('${s.id}')">
         ${servantAvatarHTML(s)}
         <div class="s-info">
-          <div class="mon-name">${s.name||'—'}${servantRoleChip(s)}</div>
+          <div class="mon-name">${eh(s.name||'—')}${servantRoleChip(s)}</div>
           <div class="mon-badges">${servantClassBadges(s)}</div>
           <div class="mon-stats">
             <span class="mon-stat-chip ${s.sscCount?'has':''}">📖 مدارس أحد <b>${s.sscCount||0}</b></span>
@@ -5116,9 +5119,9 @@ window.openServantProfile = (id) => {
   renderServantProfileClassChips(s);
   const contactLines = [];
   contactLines.push(s.status === 'pending' ? '⏳ سجّل حساب وبانتظار موافقة الأدمن' : '✅ مسجل حساب');
-  if (s.email) contactLines.push(`📧 <span dir="ltr">${s.email}</span>`);
-  if (s.phone) contactLines.push(`📞 <span dir="ltr">${s.phone}</span>`);
-  if (s.address) contactLines.push(`📍 ${s.address}`);
+  if (s.email) contactLines.push(`📧 <span dir="ltr">${eh(s.email)}</span>`);
+  if (s.phone) contactLines.push(`📞 <span dir="ltr">${eh(s.phone)}</span>`);
+  if (s.address) contactLines.push(`📍 ${eh(s.address)}`);
   document.getElementById('sprof-contact').innerHTML = contactLines.join('<br>') || '';
   renderServantProfileActions(s);
   document.getElementById('servant-profile-modal').style.display = 'flex';
@@ -5303,7 +5306,7 @@ window.openDashModal = () => {
     <label class="dash-opt">
       <input type="checkbox" value="${s.id}" ${active.includes(s.id) ? 'checked' : ''}>
       <span class="dash-opt-txt">
-        <span class="dash-opt-name">${s.name}</span>
+        <span class="dash-opt-name">${eh(s.name)}</span>
         <div class="dash-opt-desc">${s.desc}</div>
       </span>
     </label>`).join('');
@@ -5486,7 +5489,7 @@ window.renderActivityList = async function() {
     cont.innerHTML = snap.docs.map(d => {
       const a = d.data();
       const t = a.timestamp?.toDate ? a.timestamp.toDate().toLocaleString('ar-EG',{hour:'2-digit',minute:'2-digit'}) : '';
-      return `<div class="activity-item"><b>${a.name||'؟'}</b> — ${a.action}${a.detail?': '+a.detail:''}<br>${t}</div>`;
+      return `<div class="activity-item"><b>${eh(a.name||'؟')}</b> — ${eh(a.action)}${a.detail?': '+eh(a.detail):''}<br>${t}</div>`;
     }).join('');
   } catch(e) {
     cont.innerHTML = `<div class="empty-state">تعذّر تحميل الأنشطة</div>`;
