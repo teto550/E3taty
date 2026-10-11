@@ -3497,17 +3497,13 @@ function listenTodayAttendance() {
       snap.docs.forEach(d => { const x = d.data(); todayAttendance[x.studentId] = d.id; todayAttendanceTime[x.studentId] = tsToMillis(x.timestamp); if (x.byName) todayAttendanceBy[x.studentId] = x.byName; });
       // إشعار لحظي لما خادمة تانية تسجّل/تشيل حضور من جهاز تاني (مش أول تحميل، ومش تغييراتي أنا)
       if (!attFirstSnap && !snap.metadata.fromCache) {
-        const added = [], removed = [];
+        const added = [];
         snap.docChanges().forEach(ch => {
           const x = ch.doc.data(); if (ch.doc.metadata.hasPendingWrites) return;
           if (ch.type === 'added' && x.byUid !== currentUid && tsToMillis(x.timestamp) > Date.now() - 120000) added.push(x); // بس التسجيلات الجديدة فعلًا (آخر دقيقتين)
-          else if (ch.type === 'removed' && prevA[x.studentId] && !window._myRemovals?.has(x.studentId)) removed.push(x);
         });
-        const nm = x => (allStudents.find(s => s.id === x.studentId)?.name) || 'مخدوم';
+        // من غير إشعار: الصف بس بيلمع لحظة لما حد تاني يسجّل حضور
         added.forEach(x => remoteFlash.add(x.studentId));
-        if (added.length === 1) showToast(`✅ ${added[0].byName || 'خادمة'} سجّلت حضور ${nm(added[0])}`, 'success');
-        else if (added.length > 1) showToast(`✅ ${added.length} حضور جديد من خدام تانيين`, 'success');
-        else if (removed.length === 1) showToast(`↩️ اتشال حضور ${nm(removed[0])}`, 'info');
         if (added.length) setTimeout(() => { remoteFlash.clear(); renderTodayList(); }, 2200);
       }
       if (!snap.metadata.fromCache) attFirstSnap = false;
