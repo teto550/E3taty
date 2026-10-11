@@ -6195,6 +6195,12 @@ window.saveEditStudent = async () => {
 
 // ===== TOAST =====
 let toastTimer;
+// دوال بتتنادى من onchange/oninput جوه الـ HTML، فلازم تبقى global (الموديول مش بيعرضها لوحده)
+window.renderServAttList = renderServAttList;
+window.renderClassServAttList = renderClassServAttList;
+window.renderClassServList = renderClassServList;
+window.renderRolesList = renderRolesList;
+window.renderSettingsPeopleList = renderSettingsPeopleList;
 window.showToast = (msg, type='info') => {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'show ' + type;
