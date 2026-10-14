@@ -6303,7 +6303,7 @@ const notifOn = () => localStorage.getItem(NOTIF_KEY) !== '0';
 // الخطوات في docs/PUSH-SETUP.md. لحد ما تتملّى القيمتين دول، الإشعارات بتفضل جوه التطبيق بس (زي الأول).
 // 1) VAPID: Firebase Console (مشروع e3taty) → Project settings → Cloud Messaging → Web Push certificates → Generate key pair (المفتاح العام)
 // 2) رابط الـ Cloudflare Worker (ملف workers/push-worker.js)
-const FCM_VAPID_KEY   = '';
+const FCM_VAPID_KEY   = 'BEJsZYwVVWkhJdYYIvgHNEDSvuhdCWfLqDHzUhJSpToqk3mWAMKOnCi3STKTAonffFls8DR2vSkFJkt-WjGPhAY';
 const PUSH_WORKER_URL = '';
 const isPushConfigured = () => !!FCM_VAPID_KEY && !!PUSH_WORKER_URL;
 const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
