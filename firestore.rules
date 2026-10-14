@@ -36,12 +36,12 @@ service cloud.firestore {
           && request.resource.data.role == 'admin')
       );
 
-      // التعديل: الأدمن أي حاجة. صاحبة الحساب بياناتها الشخصية بس (مش الدور/الحالة/الفصول/الأدوار/العدّادات).
+      // التعديل: الأدمن أي حاجة. صاحبة الحساب بياناتها الشخصية + fcmTokens (توكنات إشعارات الموبايل) بس (مش الدور/الحالة/الفصول/الأدوار/العدّادات).
       // الأدمن الأساسي يقدر يرجّع نفسه أدمن معتمد.
       allow update: if isAdmin()
         || (isSignedIn() && request.auth.uid == uid
             && request.resource.data.diff(resource.data).affectedKeys()
-                 .hasOnly(['name', 'phone', 'address', 'lastActive']))
+                 .hasOnly(['name', 'phone', 'address', 'lastActive', 'fcmTokens']))
         || (isPrimaryAdminEmail() && request.auth.uid == uid
             && request.resource.data.role == 'admin'
             && request.resource.data.status == 'approved');
