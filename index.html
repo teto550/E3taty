@@ -1046,8 +1046,8 @@ body{background:var(--bg)}
   <div class="modal-box">
     <div class="modal-header">
       <div style="flex:1;min-width:0">
-        <div style="font-size:16px;font-weight:900">📥 رفع شيت مخدومين</div>
-        <div style="font-size:12px;color:var(--text-dim);margin-top:2px">الأعمدة: الاسم، الموبايل، اسم الأم، رقم الأم، ملاحظات</div>
+        <div style="font-size:16px;font-weight:900">📥 رفع شيت (مخدومين / حضور)</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:2px">ارفع أي شيت: بيانات (الاسم، الموبايل، اسم الأم، رقم الأم، ملاحظات) أو حضور (أعمدة تواريخ) — والتطبيق يعرف لوحده</div>
       </div>
       <button class="modal-close" onclick="closeImportModal()">✕</button>
     </div>
@@ -1055,8 +1055,9 @@ body{background:var(--bg)}
       <label class="field-label">الفصل اللي هيتضاف له المخدومين</label>
       <select class="field-select" id="import-class" style="margin-bottom:14px"></select>
       <label class="field-label">ملف الإكسيل (.xlsx / .xls / .csv)</label>
-      <input type="file" id="import-file" class="field-input" accept=".xlsx,.xls,.csv" onchange="handleImportFile(event)">
-      <div id="import-preview" style="font-size:13px;line-height:1.9;margin:6px 0 14px"></div>
+      <input type="file" id="import-file" class="field-input" accept=".xlsx,.xls,.csv" multiple onchange="handleImportFile(event)">
+      <div id="import-preview" style="font-size:13px;line-height:1.9;margin:6px 0 10px"></div>
+      <label id="import-addnew-wrap" style="display:none;font-size:13px;line-height:1.7;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="import-addnew" checked style="margin-left:6px" onchange="refreshImportBtn()">ضيف الأسماء اللي في شيت الحضور ومش موجودة كمخدومين جداد (في الفصل ده)</label>
       <button class="btn-primary" id="import-confirm-btn" onclick="confirmImport()" style="display:none">✓ استيراد</button>
     </div>
   </div>
@@ -2802,10 +2803,12 @@ window.addStudent = async () => {
   toggleAddStudentForm();
 };
 
-// ===== IMPORT STUDENTS FROM EXCEL =====
-let importRows = [];
-let importExtraDupIds = [];
+// ===== IMPORT FROM EXCEL: مخدومين + حضور قديم (بيعرف نوع كل شيت لوحده) =====
+let importRows = [], importExtraDupIds = [], importAtt = [], importAttOnly = new Set();
 const impNorm = v => String(v == null ? '' : v).replace(/[\u0640\u064B-\u065F]/g, '').replace(/\s+/g, ' ').trim();
+const impDigits = s => String(s == null ? '' : s).replace(/[\u0660-\u0669]/g, d => String(d.charCodeAt(0) - 0x0660));
+const impEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const IMP_MONTHS = { 'يناير':1, 'فبراير':2, 'مارس':3, 'ابريل':4, 'مايو':5, 'يونيو':6, 'يوليو':7, 'اغسطس':8, 'سبتمبر':9, 'اكتوبر':10, 'نوفمبر':11, 'ديسمبر':12 };
 // بيحوّل رقم الإكسيل (اللي بيضيّع الصفر الأول) لرقم موبايل صحيح. بيرجّع { main, extra[] } والرقم الغلط بيتتجاهل
 function importPhones(v) {
   if (v == null || v === '') return { main: '', extra: [], bad: false };
@@ -2818,6 +2821,83 @@ function importPhones(v) {
   }).filter(Boolean);
   return { main: parts[0] || '', extra: parts.slice(1), bad };
 }
+const IMP_NAME_RE = /^(الاسم|اسم|اسم المخدوم|اسم الطفل|اسم الطالب|اسم المخدومه|اسم الطالبه|الاسم بالكامل|المخدوم|المخدومه)$/;
+const IMP_SKIP_RE = /^(مستر|الاجمالي|اجمالي|المجموع|مجموع)(\s|\/|$)/;
+const IMP_NO = /^(0|false|غ|غايب|غايبه|غياب|absent|a|لا|no|-|—|×)$/;
+const IMP_VERSE_LBL = /^(ايه|الايه|تسميع|التسميع|سماع|السماع)$/;
+const IMP_ATT_LBL = /^(حضور|الحضور|حاضر|حاضره)$/;
+// تاريخ الحضور بيتسجل تحت خميس نفس الأسبوع (سبت → جمعة) — نفس منطق todayKey
+const impWeekKey = (y, m, d) => { const dt = new Date(y, m - 1, d, 12); dt.setDate(dt.getDate() - ((dt.getDay() + 1) % 7) + 5); return toLocalDateKey(dt); };
+function impParseDate(v) {
+  if (v == null || v === '' || typeof v === 'boolean') return null;
+  const ok = (y, mo, d) => {
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    if (!y) { const now = new Date(); y = now.getFullYear(); if (new Date(y, mo - 1, d) > new Date(now.getTime() + 14 * 86400000)) y--; } // من غير سنة: أقرب تاريخ فات
+    return { y, m: mo, d };
+  };
+  if (v instanceof Date) return ok(v.getFullYear(), v.getMonth() + 1, v.getDate());
+  if (typeof v === 'number') {
+    if (v < 30000 || v > 80000) return null;
+    const dt = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000);
+    return ok(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
+  }
+  const t = impDigits(v).trim();
+  let m = t.match(/(\d{4})\s*[-\/.]\s*(\d{1,2})\s*[-\/.]\s*(\d{1,2})/);
+  if (m) return ok(+m[1], +m[2], +m[3]);
+  m = t.match(/(\d{1,2})\s*[-\/.]\s*(\d{1,2})(?:\s*[-\/.]\s*(\d{2,4}))?/);
+  if (m) { let y = m[3] ? +m[3] : 0; if (y && y < 100) y += 2000; return ok(y, +m[2], +m[1]); }
+  m = t.match(/(\d{1,2})\s+([^\d\s\/\-.]+)(?:\s+(\d{4}))?/);
+  if (m && IMP_MONTHS[normalizeArabic(m[2])]) return ok(m[3] ? +m[3] : 0, IMP_MONTHS[normalizeArabic(m[2])], +m[1]);
+  return null;
+}
+// خلية الحضور: ✓ / TRUE / 1 / حضر / أي نص = حاضر — وفاضي / FALSE / 0 / غ / غايب = غايب
+function impMark(v) {
+  if (v === true) return true;
+  if (v == null || v === false) return false;
+  if (typeof v === 'number') return v > 0;
+  const t = normalizeArabic(impDigits(v));
+  return !!t && !IMP_NO.test(t);
+}
+// بيحلل شيت واحد: صف العناوين، أعمدة البيانات، أعمدة التواريخ (حضور/آية)، ونوعه
+function impAnalyzeSheet(aoa) {
+  const hi = aoa.findIndex((r, i) => i < 30 && (r || []).some(c => IMP_NAME_RE.test(normalizeArabic(c))));
+  if (hi < 0) return null;
+  const col = {};
+  (aoa[hi] || []).forEach((c, i) => {
+    const h = normalizeArabic(c); if (!h) return;
+    if (col.name == null && IMP_NAME_RE.test(h)) col.name = i;
+    else if (/^(اسم الام|اسم الوالده)$/.test(h)) col.mName = i;
+    else if (/^(رقم الام|تليفون الام|موبايل الام|رقم الوالده|تليفون الوالده)$/.test(h)) col.mPhone = i;
+    else if (/^(تليفون الاب|رقم الاب|موبايل الاب|تليفون ولي الامر|موبايل ولي الامر|رقم ولي الامر)$/.test(h)) col.father = i;
+    else if (/^(الموبايل|موبايل|رقم الموبايل|تليفون المخدوم|تليفون المخدومه|رقم المخدوم|رقم المخدومه|موبايل المخدوم|موبايل المخدومه|تليفون|رقم التليفون|الهاتف|رقم الهاتف)$/.test(h)) col.phone = i;
+    else if (/^(ارقام اخري|ارقام اضافيه|تليفون اضافي)$/.test(h)) col.others = i;
+    else if (/^(ملاحظات|العنوان|عنوان|السكن)$/.test(h)) col.notes = i;
+    else if (/^(الفصل|فصل|الصف|السنه)$/.test(h)) col.cls = i;
+  });
+  const nameOf = r => (r && r[col.name] != null ? String(r[col.name]).trim() : '');
+  const sub = aoa[hi + 1], useSub = !!sub && !nameOf(sub); // صف تحت العناوين من غير اسم = عناوين فرعية (حضور / آية)
+  const scan = [aoa[hi], aoa[hi - 1]].concat(useSub ? [sub] : []);
+  const width = Math.max(0, ...aoa.slice(Math.max(0, hi - 1), hi + 2).map(r => (r || []).length));
+  const profile = new Set(Object.values(col));
+  const attCols = [], verseCols = [];
+  let last = null, shifted = false;
+  for (let c = 0; c < width; c++) {
+    if (profile.has(c)) { last = null; continue; }
+    let dt = null; for (const r of scan) { dt = impParseDate(r && r[c]); if (dt) break; }
+    let lab = ''; for (const r of scan) { const t = normalizeArabic(r && r[c]); if (IMP_VERSE_LBL.test(t)) { lab = 'verse'; break; } if (IMP_ATT_LBL.test(t)) { lab = 'att'; break; } }
+    if (!dt && lab && last) dt = last; // تاريخ مدموج فوق عمودين (حضور + آية)
+    if (dt) {
+      last = dt;
+      if (new Date(dt.y, dt.m - 1, dt.d, 12).getDay() !== 4) shifted = true;
+      (lab === 'verse' ? verseCols : attCols).push({ c, key: impWeekKey(dt.y, dt.m, dt.d) });
+    } else last = null;
+  }
+  const hasProfile = ['phone','mPhone','mName','father','others','notes','cls'].some(k => col[k] != null);
+  const kind = attCols.length ? (hasProfile ? 'both' : 'att') : (verseCols.length && !hasProfile ? 'verseonly' : 'students');
+  return { hi, col, attCols, verseCols, kind, shifted };
+}
+const impFmtKey = k => { const p = k.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; };
+
 window.openImportModal = async () => {
   if (currentRole !== 'admin') { showToast('رفع الشيت للأدمن بس', 'error'); return; }
   await ensureAllClassesForAdmin();
@@ -2830,7 +2910,8 @@ window.openImportModal = async () => {
   document.getElementById('import-file').value = '';
   document.getElementById('import-preview').innerHTML = '';
   document.getElementById('import-confirm-btn').style.display = 'none';
-  importRows = []; importExtraDupIds = [];
+  importRows = []; importExtraDupIds = []; importAtt = []; importAttOnly = new Set();
+  document.getElementById('import-addnew-wrap').style.display = 'none';
   document.getElementById('import-modal').style.display = 'block';
   document.body.style.overflow = 'hidden';
 };
@@ -2838,54 +2919,77 @@ window.closeImportModal = () => {
   document.getElementById('import-modal').style.display = 'none';
   document.body.style.overflow = '';
 };
+
 window.handleImportFile = async (e) => {
-  const f = e.target.files && e.target.files[0];
+  const files = [...((e.target.files) || [])];
   const box = document.getElementById('import-preview');
   const btn = document.getElementById('import-confirm-btn');
-  btn.style.display = 'none'; importRows = []; importExtraDupIds = [];
-  if (!f) return;
+  btn.style.display = 'none'; importRows = []; importExtraDupIds = []; importAtt = []; importAttOnly = new Set();
+  document.getElementById('import-addnew-wrap').style.display = 'none';
+  if (!files.length) return;
+  box.innerHTML = '⏳ بقرا الملف…';
   try {
     // تحميل جديد من السيرفر (مش من الكاش) عشان نكتشف الأسماء اللي اتضافت في رفعة سابقة
     await loadStudents(true);
-    const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
-    // لاقي صف العناوين (اللي فيه "الاسم") — وكل عمود بيتعرف من اسمه مش من مكانه
-    let hi = aoa.findIndex(r => (r || []).some(c => impNorm(c) === 'الاسم'));
-    if (hi < 0) { box.innerHTML = '<span style="color:var(--danger,#e74c3c)">مش لاقي عمود "الاسم" في الشيت</span>'; return; }
-    const col = {};
-    aoa[hi].forEach((c, i) => {
-      const h = impNorm(c);
-      if (h === 'الاسم') col.name = i;
-      else if (/^(الموبايل|موبايل|تليفون المخدوم|رقم المخدوم|تليفون)$/.test(h)) col.phone = i;
-      else if (/^(اسم الام|اسم الأم)$/.test(h)) col.mName = i;
-      else if (/^(رقم الام|رقم الأم|تليفون الام|تليفون الأم|موبايل الام|موبايل الأم)$/.test(h)) col.mPhone = i;
-      else if (h === 'ملاحظات') col.notes = i;
-    });
-    const get = (r, k) => (col[k] == null ? null : r[col[k]]);
+    const allowed = getAllowedAssignedClasses();
+    const classMap = new Map();
+    allClasses.forEach(c => { classMap.set(normalizeArabic(c.name), c.id); classMap.set(normalizeArabic(classLabel(c.id)), c.id); });
     // كل اسم موجود قبل كده (ممكن يبقى له أكتر من نسخة لو اتكرر) — بنحتفظ بأقدم نسخة ونحدّثها، والباقي مكرر
     const have = new Map();
-    for (const s of allStudents) {
-      const k = normalizeArabic(s.name);
+    for (const st of allStudents) {
+      const k = normalizeArabic(st.name);
       if (!have.has(k)) have.set(k, []);
-      have.get(k).push(s);
+      have.get(k).push(st);
     }
-    have.forEach(list => list.sort((a, b) => tsMs(a.createdAt) - tsMs(b.createdAt)));
-    const byKey = new Map(); // لو الاسم اتكرر جوه الشيت نفسه، آخر صف هو اللي بيتاخد
+    have.forEach(list => list.sort((x, y) => tsMs(x.createdAt) - tsMs(y.createdAt)));
+
+    // 1) قراءة كل الشيتات وتصنيف كل واحد
+    const sheets = [], out = [];
+    for (const f of files) {
+      const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+      for (const sn of wb.SheetNames) {
+        const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: null, raw: true });
+        if (!aoa.some(r => r && r.some(c => c != null && c !== ''))) continue;
+        const tag = impEsc(files.length > 1 || wb.SheetNames.length > 1 ? `${f.name} ← ${sn}` : f.name);
+        const info = impAnalyzeSheet(aoa);
+        if (!info) { out.push(`❔ <b>${tag}</b>: مش لاقي عمود "الاسم" — اتجاهل`); continue; }
+        if (info.kind === 'verseonly') { out.push(`❔ <b>${tag}</b>: شيت آيات بس — رفع الآيات مش مدعوم هنا، اتجاهل`); continue; }
+        sheets.push({ tag, aoa, ...info });
+      }
+    }
+    if (!sheets.length) { box.innerHTML = out.join('<br>') || '<span style="color:var(--danger,#e74c3c)">الملف فاضي</span>'; return; }
+
+    const nameOfRow = (r, sh) => {
+      const name = canonicalizeName(impNorm(r && r[sh.col.name]));
+      if (!name || /^\d+$/.test(name) || IMP_SKIP_RE.test(normalizeArabic(name))) return '';
+      return name;
+    };
+    const keyToId = new Map([...have].map(([k, list]) => [k, list[0].id]));
+
+    // 2) شيتات بيانات المخدومين (students / both) — لو الاسم اتكرر جوه الشيتات آخر صف هو اللي بيتاخد
+    const byKey = new Map(), clsOfRow = new Map();
     let fileDup = 0, badPhones = 0, noPhone = 0;
-    for (const r of aoa.slice(hi + 1)) {
-      if (!r) continue;
-      const name = canonicalizeName(impNorm(get(r, 'name')));
-      if (!name) continue;
-      const key = normalizeArabic(name);
-      if (byKey.has(key)) fileDup++;
-      const sp = importPhones(get(r, 'phone')), mp = importPhones(get(r, 'mPhone'));
-      if (sp.bad || mp.bad) badPhones++;
-      if (!sp.main && !mp.main) noPhone++;
-      byKey.set(key, {
-        name, student: sp.main, mother: mp.main, others: [...sp.extra, ...mp.extra],
-        motherName: impNorm(get(r, 'mName')), notes: String(get(r, 'notes') == null ? '' : get(r, 'notes')).trim()
-      });
+    for (const sh of sheets.filter(x => x.kind !== 'att')) {
+      let n = 0;
+      for (const r of sh.aoa.slice(sh.hi + 1)) {
+        const name = nameOfRow(r, sh); if (!name) continue;
+        const key = normalizeArabic(name);
+        const g = k => (sh.col[k] == null ? null : r[sh.col[k]]);
+        const sp = importPhones(g('phone')), mp = importPhones(g('mPhone')), fp = importPhones(g('father')), op = importPhones(g('others'));
+        if (byKey.has(key)) fileDup++;
+        if (sp.bad || mp.bad || fp.bad || op.bad) badPhones++;
+        if (!sp.main && !mp.main && !fp.main) noPhone++;
+        let rc = '';
+        const cv = g('cls');
+        if (cv != null && cv !== '') { const id = classMap.get(normalizeArabic(cv)); if (id && (!allowed.length || allowed.includes(id))) rc = id; }
+        byKey.set(key, {
+          key, name, student: sp.main, mother: mp.main, father: fp.main,
+          others: [...sp.extra, ...mp.extra, ...fp.extra, ...(op.main ? [op.main] : []), ...op.extra],
+          motherName: impNorm(g('mName')), notes: String(g('notes') == null ? '' : g('notes')).trim(), cls: rc
+        });
+        n++;
+      }
+      out.push(`👥 <b>${sh.tag}</b>: شيت بيانات مخدومين${sh.kind === 'both' ? ' (وفيه حضور كمان)' : ''} — ${n} صف`);
     }
     const rows = [], extraDupIds = [];
     let toUpdate = 0;
@@ -2895,85 +2999,154 @@ window.handleImportFile = async (e) => {
         row.existing = existing[0];
         toUpdate++;
         existing.slice(1).forEach(x => extraDupIds.push(x.id));
+      } else {
+        row.ref = doc(collection(db, 'students'));
+        keyToId.set(key, row.ref.id);
       }
       rows.push(row);
     });
-    importRows = rows;
-    importExtraDupIds = extraDupIds;
-    const toAdd = rows.length - toUpdate;
+
+    // 3) شيتات الحضور (att / both)
+    const recs = new Map(), attOnlyIds = new Set(), attOnlyNames = [];
+    let shifted = false;
+    for (const sh of sheets.filter(x => x.attCols.length)) {
+      if (sh.shifted) shifted = true;
+      let people = 0;
+      for (const r of sh.aoa.slice(sh.hi + 1)) {
+        const name = nameOfRow(r, sh); if (!name) continue;
+        const hits = sh.attCols.filter(a => impMark(r[a.c]));
+        if (!hits.length) continue;
+        const key = normalizeArabic(name);
+        let id = keyToId.get(key);
+        if (!id) { // اسم مش موجود في التطبيق ولا في شيتات البيانات
+          const ref = doc(collection(db, 'students'));
+          id = ref.id; keyToId.set(key, id); attOnlyIds.add(id); attOnlyNames.push(name);
+          rows.push({ key, name, student: '', mother: '', father: '', others: [], motherName: '', notes: '', cls: '', ref, attOnly: true });
+        }
+        people++;
+        hits.forEach(a => { if (!recs.has(id + '|' + a.key)) recs.set(id + '|' + a.key, { sid: id, date: a.key }); });
+      }
+      const ds = [...new Set(sh.attCols.map(a => a.key))].sort();
+      out.push(`✅ <b>${sh.tag}</b>: شيت حضور — ${ds.length} تاريخ (${impFmtKey(ds[0])}${ds.length > 1 ? ' → ' + impFmtKey(ds[ds.length - 1]) : ''}) · ${people} مخدومة حضروا مرة على الأقل`
+        + (sh.verseCols.length ? ` · ⚠️ ${sh.verseCols.length} عمود آيات اتجاهل` : ''));
+    }
+
+    // 4) استبعاد الحضور المتسجل قبل كده (عشان مفيش تكرار)
+    let dupAtt = 0; const all = [...recs.values()];
+    if (all.length) {
+      box.innerHTML = '⏳ بتأكد من الحضور المتسجل قبل كده…';
+      const exist = new Set(), ds = [...new Set(all.filter(a => !attOnlyIds.has(a.sid)).map(a => a.date))];
+      for (let i = 0; i < ds.length; i += 30) {
+        const snap = await countedGetDocs(query(collection(db, 'attendance'), where('date', 'in', ds.slice(i, i + 30))), 'attendance (استيراد - فحص التكرار)');
+        snap.docs.forEach(x => { const v = x.data(); exist.add(v.studentId + '|' + v.date); });
+      }
+      importAtt = all.filter(a => !exist.has(a.sid + '|' + a.date));
+      dupAtt = all.length - importAtt.length;
+    }
+    importRows = rows; importExtraDupIds = extraDupIds; importAttOnly = attOnlyIds;
+
+    const nNew = rows.filter(r => !r.existing && !r.attOnly).length;
     const cls = document.getElementById('import-class').value;
-    box.innerHTML = `✅ جديد هيتضاف: <b>${toAdd}</b>` +
-      (toUpdate ? `<br>🔄 موجودين قبل كده (هتتحدّث بياناتهم بدل ما يتكرروا): <b>${toUpdate}</b>` : '') +
-      (extraDupIds.length ? `<br>🗑️ نسخ مكررة موجودة في الداتا (هتتحذف): <b>${extraDupIds.length}</b>` : '') +
-      (fileDup ? `<br>⏭️ أسامي مكررة جوه الشيت نفسه (اتاخد آخر صف): <b>${fileDup}</b>` : '') +
-      (badPhones ? `<br>⚠️ صفوف فيها رقم غلط اتتجاهل: <b>${badPhones}</b>` : '') +
-      (noPhone ? `<br>⚠️ صفوف من غير أي رقم صالح: <b>${noPhone}</b>` : '') +
-      (!cls ? '<br>⚠️ مفيش فصل متحدد — الجدد هيتضافوا "لسه متقسمش" والموجودين فصلهم هيفضل زي ما هو' : '');
-    if (rows.length || extraDupIds.length) btn.style.display = 'block';
+    box.innerHTML = out.join('<br>') + '<hr style="border:none;border-top:1px solid var(--border);margin:8px 0">'
+      + (sheets.some(x => x.kind !== 'att') ? `✅ مخدومين جدد هيتضافوا: <b>${nNew}</b>` : '')
+      + (toUpdate ? `<br>🔄 موجودين قبل كده (هتتحدّث بياناتهم بدل ما يتكرروا): <b>${toUpdate}</b>` : '')
+      + (extraDupIds.length ? `<br>🗑️ نسخ مكررة موجودة في الداتا (هتتحذف): <b>${extraDupIds.length}</b>` : '')
+      + (fileDup ? `<br>⏭️ أسامي مكررة جوه الشيت نفسه (اتاخد آخر صف): <b>${fileDup}</b>` : '')
+      + (importAtt.length || dupAtt ? `<br>📅 حضور هيتسجل: <b>${importAtt.length}</b>${dupAtt ? ` · ♻️ متسجل قبل كده: <b>${dupAtt}</b>` : ''}` : '')
+      + (attOnlyNames.length ? `<br>🆕 أسماء في شيت الحضور مش موجودة عندنا: <b>${attOnlyNames.length}</b><br><span style="font-size:12px;color:var(--text-dim)">${attOnlyNames.slice(0, 12).map(impEsc).join(' · ')}</span>` : '')
+      + (shifted ? '<br><span style="font-size:12px;color:var(--text-dim)">ℹ️ تواريخ الحضور اتحوّلت لخميس الأسبوع (زي ما التطبيق بيسجل)</span>' : '')
+      + (badPhones ? `<br>⚠️ صفوف فيها رقم غلط اتتجاهل: <b>${badPhones}</b>` : '')
+      + (noPhone ? `<br>⚠️ صفوف من غير أي رقم صالح: <b>${noPhone}</b>` : '')
+      + (!cls ? '<br>⚠️ مفيش فصل متحدد — الجدد هيتضافوا "لسه متقسمش" والموجودين فصلهم هيفضل زي ما هو' : '');
+    document.getElementById('import-addnew-wrap').style.display = attOnlyNames.length ? 'block' : 'none';
+    refreshImportBtn();
   } catch (err) {
     console.error(err);
     box.innerHTML = '<span style="color:var(--danger,#e74c3c)">مقدرتش أقرأ الملف — اتأكد إنه Excel سليم</span>';
   }
 };
+// اللي هيتكتب فعلاً حسب الاختيارات (الأسماء الجديدة من شيت الحضور بس بتتضاف لو الخيار متعلّم)
+function importPlan() {
+  const addNew = document.getElementById('import-addnew').checked;
+  return {
+    rows: importRows.filter(r => !r.attOnly || addNew),
+    att: importAtt.filter(a => addNew || !importAttOnly.has(a.sid)),
+    dups: importExtraDupIds
+  };
+}
+window.refreshImportBtn = () => {
+  const p = importPlan();
+  document.getElementById('import-confirm-btn').style.display = (p.rows.length || p.att.length || p.dups.length) ? 'block' : 'none';
+};
 window.confirmImport = async () => {
-  if (currentRole !== 'admin' || !(importRows.length || importExtraDupIds.length)) return;
+  const { rows, att, dups } = importPlan();
+  if (currentRole !== 'admin' || !(rows.length || att.length || dups.length)) return;
   const btn = document.getElementById('import-confirm-btn');
   const cls = document.getElementById('import-class').value || '';
   const allowed = getAllowedAssignedClasses();
   if (allowed.length && !allowed.includes(cls)) { showToast('اختار فصل من فصولك', 'error'); return; }
-  if (importExtraDupIds.length && !confirm(`هيتم حذف ${importExtraDupIds.length} نسخة مكررة من المخدومين (بيتحفظ أقدم نسخة من كل اسم). متأكد؟`)) return;
+  if (dups.length && !confirm(`هيتم حذف ${dups.length} نسخة مكررة من المخدومين (بيتحفظ أقدم نسخة من كل اسم). متأكد؟`)) return;
   btn.disabled = true; btn.textContent = 'جاري الاستيراد…';
   try {
-    // كل عملية (إضافة / تحديث / حذف) بتتحط في batch — الحد 500 عملية في الـ batch فبنقسمها 400 400
+    const clsOfId = new Map(allStudents.map(x => [x.id, x.classSection || '']));
+    rows.forEach(r => { if (r.existing) clsOfId.set(r.existing.id, cls || r.cls || r.existing.classSection || ''); else clsOfId.set(r.ref.id, r.cls || cls); });
+    // كل عملية (إضافة / تحديث / حذف / حضور) بتتحط في batch — الحد 500 عملية في الـ batch فبنقسمها 400 400 (المخدومين الأول وبعدين الحضور)
     const ops = [];
     let added = 0, updated = 0;
-    importRows.forEach(r => {
+    rows.forEach(r => {
       if (r.existing) {
         const prev = r.existing;
-        // الشيت مفيهوش عمود لرقم الأب/الخريطة/النوع، فبنسيبهم زي ما هم. وأي خانة فاضية في الشيت مبتمسحش القيمة الموجودة
-        const father = prev.fatherPhone || '';
+        // الخانة الفاضية في الشيت مبتمسحش القيمة الموجودة
+        const father = r.father || prev.fatherPhone || '';
         const mother = r.mother || prev.motherPhone || '';
         const student = r.student || prev.studentPhone || '';
         const others = r.others.length ? r.others : (prev.otherPhones || []);
-        const data = {
-          name: r.name,
-          ...buildPhoneFields(father, mother, student, others, prev),
-          updatedAt: serverTimestamp()
-        };
+        const data = { name: r.name, ...buildPhoneFields(father, mother, student, others, prev), updatedAt: serverTimestamp() };
         if (r.notes) data.address = r.notes;
         if (r.motherName) data.motherName = r.motherName;
-        if (cls) data.classSection = cls;
-        ops.push(b => b.update(doc(db,'students',prev.id), data));
+        if (cls || r.cls) data.classSection = r.cls || cls;
+        ops.push(b => b.update(doc(db, 'students', prev.id), data));
         updated++;
       } else {
-        ops.push(b => b.set(doc(collection(db,'students')), {
+        ops.push(b => b.set(r.ref, {
           name: r.name,
           address: r.notes,
           addressMap: '',
           motherName: r.motherName,
           gender: 'female',
-          ...buildPhoneFields('', r.mother, r.student, r.others, null),
-          classSection: cls,
+          ...buildPhoneFields(r.father, r.mother, r.student, r.others, null),
+          classSection: r.cls || cls,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         }));
         added++;
       }
     });
-    importExtraDupIds.forEach(id => ops.push(b => b.delete(doc(db,'students',id))));
+    dups.forEach(id => ops.push(b => b.delete(doc(db, 'students', id))));
+    // الحضور بنفس معرّف التطبيق (التاريخ_المخدوم) وبـ byUid عشان قواعد فايرستور
+    att.forEach(a => ops.push(b => b.set(doc(db, 'attendance', a.date + '_' + a.sid), {
+      studentId: a.sid, date: a.date, classSection: clsOfId.get(a.sid) || '',
+      timestamp: Timestamp.fromDate(new Date(a.date + 'T12:00:00')), byUid: currentUid || '', byName: currentName || ''
+    })));
     for (let i = 0; i < ops.length; i += 400) {
       const batch = writeBatch(db);
       ops.slice(i, i + 400).forEach(fn => fn(batch));
       await batch.commit();
     }
-    const removed = importExtraDupIds.length;
+    const removed = dups.length;
     bumpStudentsRev(removed > 0);
-    importRows = []; importExtraDupIds = [];
+    if (att.length) { // الكاش القديم للحضور ميعرفش بالتواريخ اللي اتضافت
+      recentAttWeeks = 0;
+      try { await idbSet(ATT_CACHE_KEY + '@' + readScopeClasses().join(','), 'null'); } catch (e) {}
+      for (const k in studentHist) delete studentHist[k];
+    }
+    importRows = []; importExtraDupIds = []; importAtt = []; importAttOnly = new Set();
     closeImportModal();
     // force عشان الكاش القديم مايرجعش (عداد التحديث بيتأخر ثانيتين) وإلا الرفعة الجاية مش هتشوف الأسماء دي
     await loadStudents(true);
-    showToast(`تم: ${added} جديد، ${updated} تحديث${removed ? `، ${removed} مكرر اتحذف` : ''} ✓`, 'success');
-    logActivity('استيراد مخدومين من إكسيل', `${added} جديد، ${updated} تحديث${removed ? `، ${removed} مكرر اتحذف` : ''} — ${cls ? classLabel(cls) : 'من غير فصل'}`);
+    const msg = `${added} جديد، ${updated} تحديث${att.length ? `، ${att.length} حضور` : ''}${removed ? `، ${removed} مكرر اتحذف` : ''}`;
+    showToast(`تم: ${msg} ✓`, 'success');
+    logActivity('استيراد من إكسيل', `${msg} — ${cls ? classLabel(cls) : 'من غير فصل'}`);
   } catch (err) {
     console.error(err);
     showToast('حصل خطأ أثناء الاستيراد — مفيش صلاحية أو النت فاصل', 'error');
