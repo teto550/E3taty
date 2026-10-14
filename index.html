@@ -2781,7 +2781,7 @@ window.addStudent = async () => {
   const dup = allStudents.find(s => normalizeArabic(s.name) === normalizeArabic(name));
   if (dup && !confirm(`فيه مخدوم بنفس الاسم "${dup.name}" مسجل قبل كده. تحب تضيفه تاني كاسم مكرر؟`)) return;
   const allowed = getAllowedAssignedClasses();
-  const targetClass = (currentRole !== 'admin' && allowed.length) ? (allowed.includes(currentClassTab) ? currentClassTab : allowed[0]) : '';
+  const targetClass = currentClassTab || ((currentRole !== 'admin' && allowed.length) ? (allowed.includes(currentClassTab) ? currentClassTab : allowed[0]) : (allClasses[0]?.id || ''));
   const data = {
     name,
     address,
@@ -2791,10 +2791,8 @@ window.addStudent = async () => {
     ...buildPhoneFields(father, mother, student, [], null),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-    classSection: ''
+    classSection: targetClass
   };
-  // لو الخادمة مقيد بفصول معينة، أي مخدوم جديد بيضيفه يتحط أوتوماتيك في الفصل الحالي اللى شافه في الواجهة عشان يبقى ضمن الفصول المسموح له
-  if (currentRole !== 'admin' && allowed.length) data.classSection = targetClass;
   await addDoc(collection(db,'students'), data); bumpStudentsRev();
   ['new-name','new-address','new-map','new-mother-name','new-phone-father','new-phone-mother','new-phone-student']
     .forEach(id => { document.getElementById(id).value = ''; });
