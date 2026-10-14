@@ -4370,10 +4370,11 @@ function renderAdminClassCards() {
 }
 window.showAdminClasses = () => {
   if (currentRole !== 'admin') return;
-  hideAdminScreens();
+  hideAllScreens();
   document.getElementById('tab-admin-classes').style.display = 'block';
   adminClassMode = null;
   renderAdminClassCards();
+  applyMonitorVisibility();
 };
 window.openClassFromAdmin = (id) => {
   currentClassTab = id;
@@ -4392,6 +4393,7 @@ function hideAllScreens() {
   document.getElementById('main-tabs').style.display = 'none';
   document.getElementById('global-class-tabs').style.display = 'none';
   document.getElementById('tab-home').style.display = 'none';
+  const hdr = document.getElementById('class-home-header'); if (hdr) hdr.style.display = 'none';
   const st = document.getElementById('section-title'); if (st) st.style.display = 'none';
 }
 // الرئيسية: الأدمن بيشوف (الفصول / الخادمات)، وباقي الخادمات بيشوفوا كروت فصلهم على طول
