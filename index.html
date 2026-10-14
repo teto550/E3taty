@@ -1315,6 +1315,7 @@ import { initializeAppCheck, ReCaptchaEnterpriseProvider }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
 
 // ✏️ حط هنا إيميل (أو أكتر من إيميل) الأدمن بتاعك — ده اللي هيتسجل تلقائياً كأدمن ويقدر يشوف تبويب "متابعة"
+// ⚠️ لو غيّرت الإيميل هنا لازم تغيّره كمان في ملف firestore.rules (دالة isPrimaryAdminEmail) وتعمل Publish في Firebase، وإلا الأدمن هيتقفل عليه.
 const ADMIN_EMAILS = ['devidemele@gmail.com'];
 
 // ===== FIREBASE CONFIG (خدمة فتيات إعدادي — مشروع Firebase جديد ومنفصل) =====
@@ -3486,7 +3487,9 @@ async function _ensureRecentAttendance(weeks) {
     // الـ index المركب (classSection + date) لسه مش متعمل: بنرجع للقراءة القديمة ولينك إنشاء الـ index بيظهر في الـ console
     if (!scope.length) throw e;
     console.warn('أنشئ index مركب لـ attendance (classSection + date):', e && e.message);
-    snap = await countedGetDocs(query(collection(db,'attendance'), where('date','>=', qFrom)), 'attendance (نطاق زمني - بدون index)'); usedKey = '';
+    // الاستعلام بالفصل بس (الـ Rules بتسمح بيه ومش محتاج index مركب)، والفلترة بالتاريخ بتتعمل على الجهاز
+    const fb = await countedGetDocs(query(collection(db,'attendance'), where('classSection','in', scope)), 'attendance (نطاق زمني - بدون index)');
+    snap = { docs: fb.docs.filter(x => (x.data().date || '') >= qFrom) }; usedKey = '';
   }
   for (const k of Object.keys(data)) if (k >= qFrom) delete data[k]; // الأيام اللي هنقراها تاني بتتستبدل بالكامل (لو حد اتشال حضوره)
   snap.docs.forEach(x => { const v = x.data(); if (!data[v.date]) data[v.date] = {}; data[v.date][v.studentId] = x.id; });

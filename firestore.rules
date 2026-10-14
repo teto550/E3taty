@@ -12,9 +12,11 @@ service cloud.firestore {
     // فاضي = ولا فصل (الخادمة من غير فصل مش بتشوف أي مخدومين). الأدمن بيشوف الكل.
     function myClasses() { return myDoc().get('assignedClass', '').split(','); }
     function classOk(c) { return isAdmin() || (isApproved() && c is string && c != '' && c in myClasses()); }
-    // الأدمن الأساسي (نفس ADMIN_EMAILS في index.html) — لازم تتغير هنا لو اتغيرت هناك
+    // الأدمن الأساسي (نفس ADMIN_EMAILS في index.html) — لازم تتغير هنا لو اتغيرت هناك (والعكس).
+    // لازم الإيميل يكون متأكَّد (email_verified) عشان محدّش يسجّل بإيميل الأدمن ويبقى أدمن.
     function isPrimaryAdminEmail() {
-      return isSignedIn() && request.auth.token.email in ['devidemele@gmail.com'];
+      return isSignedIn() && request.auth.token.email_verified == true
+        && request.auth.token.email in ['devidemele@gmail.com'];
     }
 
     // ===== servants (الحسابات) =====

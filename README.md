@@ -10,7 +10,7 @@
 1. من [Firebase console](https://console.firebase.google.com) افتح مشروع `e3taty` → Build → **Authentication** → Sign-in method: فعّل **Email/Password**.
 2. من Build → **Firestore Database**: اعمل Database (production mode) لو لسه معملتهاش.
 3. من Firestore → **Rules**: امسح الموجود والصق محتوى ملف `firestore.rules` وادوس Publish.
-4. افتح `index.html` وابحث عن `ADMIN_EMAILS` وحط إيميل الأدمن (ولازم يبقى نفسه في `firestore.rules` في `isMainAdminEmail`).
+4. افتح `index.html` وابحث عن `ADMIN_EMAILS` وحط إيميل الأدمن (ولازم يبقى نفسه في `firestore.rules` جوه دالة `isPrimaryAdminEmail`، وبعد أي تغيير في الملف اعمله Publish من Firebase console).
 5. ارفع الملفات على GitHub repo جديد وفعّل GitHub Pages، وبعدها أضف رابط الموقع (مثلاً `username.github.io`) في Authentication → Settings → **Authorized domains**.
 6. ادخل الموقع وسجّل حساب الأدمن **الأول** بإيميل الأدمن، وبعده الخدام التانيين.
 
