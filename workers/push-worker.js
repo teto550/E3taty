@@ -117,12 +117,22 @@ async function queryServants(pid, jsonH, filters) {
 
 async function sendPush(pid, jsonH, tokens, data) {
   const list = [...new Set(tokens)];
-  const results = await Promise.allSettled(list.map((t) =>
-    fetch(`https://fcm.googleapis.com/v1/projects/${pid}/messages:send`, {
+  const results = await Promise.allSettled(list.map(async (t) => {
+    const r = await fetch(`https://fcm.googleapis.com/v1/projects/${pid}/messages:send`, {
       method: 'POST', headers: jsonH,
       body: JSON.stringify({ message: { token: t, data, webpush: { headers: { Urgency: 'high', TTL: '86400' } } } }),
-    }).then((r) => r.status)));
-  return { sent: results.filter((r) => r.status === 'fulfilled' && r.value === 200).length, total: list.length };
+    });
+    if (r.status === 200) return { ok: true };
+    let msg = '';
+    try { const j = await r.json(); msg = (j.error && (j.error.message || j.error.status)) || ''; } catch (e) {}
+    return { ok: false, status: r.status, msg };
+  }));
+  const vals = results.map((r) => (r.status === 'fulfilled' ? r.value : { ok: false, status: 0, msg: String(r.reason) }));
+  return {
+    sent: vals.filter((v) => v.ok).length,
+    total: list.length,
+    errors: [...new Set(vals.filter((v) => !v.ok).map((v) => `${v.status} ${v.msg}`.trim()))].slice(0, 3),
+  };
 }
 const tokensOf = (users) => users.flatMap((u) => (Array.isArray(u.fcmTokens) ? u.fcmTokens : []));
 
@@ -138,7 +148,7 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
 
     const url = new URL(request.url);
-    if (request.method !== 'POST' || (url.pathname !== '/new-request' && url.pathname !== '/servant-open')) {
+    if (request.method !== 'POST' || (url.pathname !== '/new-request' && url.pathname !== '/servant-open' && url.pathname !== '/test')) {
       return json({ error: 'not found' }, 404, cors);
     }
     if (allowed && request.headers.get('Origin') !== allowed) return json({ error: 'forbidden' }, 403, cors);
@@ -159,6 +169,17 @@ export default {
       const dr = await fetch(`${fsBase(pid)}/servants/${uid}`, { headers: authH });
       if (!dr.ok) return json({ error: 'no servant doc' }, 404, cors);
       const me = fvFields((await dr.json()).fields);
+
+      // ===== تجربة: بيبعت إشعار لأجهزة صاحب الحساب نفسه ويرجّع النتيجة (للتشخيص) =====
+      if (url.pathname === '/test') {
+        const mine = tokensOf([me]);
+        if (!mine.length) return json({ ok: true, sent: 0, total: 0, errors: [] }, 200, cors);
+        const out = await sendPush(pid, jsonH, mine, {
+          title: '🧪 تجربة الإشعارات', body: 'لو شايفة الإشعار ده يبقى الإشعارات شغّالة ✅',
+          url: env.APP_URL || '', tag: `test-${uid}`, force: '1',
+        });
+        return json({ ok: true, ...out }, 200, cors);
+      }
 
       // ===== طلب انضمام جديد → الأدمن =====
       if (url.pathname === '/new-request') {

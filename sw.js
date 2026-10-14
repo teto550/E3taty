@@ -20,7 +20,7 @@ self.addEventListener('push', event => {
   if (!d.title && !d.body) return;
   event.waitUntil((async () => {
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    if (wins.some(c => c.visibilityState === 'visible')) return;
+    if (!d.force && wins.some(c => c.visibilityState === 'visible')) return;
     await self.registration.showNotification(d.title || 'اعتاتي', {
       body: d.body || '', icon: 'icon-513.png', badge: 'badge-96.png',
       tag: d.tag || 'e3taty-push', dir: 'rtl', lang: 'ar', data: { url: d.url || './' }
