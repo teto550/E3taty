@@ -523,7 +523,6 @@ body{background:var(--bg)}
         <button class="settings-dropdown-item" onclick="openExportModal()">📥 تصدير Excel</button>
         <button class="settings-dropdown-item" id="settings-dropdown-roles" style="display:none" onclick="openUsersRolesModal()">👥 المستخدمين والأدوار</button>
         <button class="settings-dropdown-item" id="settings-dropdown-notif" style="display:none" onclick="toggleNotifications()"><span>🔔 الإشعارات</span><span id="notif-state" style="font-size:12px;font-weight:800"></span></button>
-        <button class="settings-dropdown-item" id="settings-dropdown-notiftest" style="display:none" onclick="closeSettingsMenu();testPush()"><span>🧪 جرّب الإشعار</span></button>
         <div class="settings-dropdown-divider"></div>
         <button class="settings-dropdown-item danger" onclick="closeSettingsMenu();doLogout()">🚪 تسجيل الخروج</button>
       </div>
@@ -1930,7 +1929,6 @@ window.toggleSettingsMenu = (e) => {
   const opening = dd.style.display === 'none';
   document.getElementById('settings-dropdown-roles').style.display = (opening && currentRole === 'admin') ? 'flex' : 'none';
   document.getElementById('settings-dropdown-notif').style.display = (opening && currentRole === 'admin') ? 'flex' : 'none';
-  { const tb = document.getElementById('settings-dropdown-notiftest'); if (tb) tb.style.display = (opening && currentRole === 'admin' && isPushConfigured()) ? 'flex' : 'none'; }
   updateNotifBtn();
   dd.style.display = opening ? 'block' : 'none';
   if (opening) document.addEventListener('click', closeSettingsMenuOutside);
@@ -6351,23 +6349,6 @@ async function callPushWorker(path, body) {
     return { status: res.status, body: out };
   } catch (e) { console.warn('push worker error:', e); return { status: 0, body: { error: String((e && e.message) || e) } }; }
 }
-// تجربة الإشعار: بيسجّل الجهاز ويبعت إشعار تجريبي لأجهزتك وبيقولك النتيجة (للتشخيص)
-window.testPush = async () => {
-  const user = auth.currentUser; if (!user) return;
-  if (!isPushConfigured()) { showToast('إعداد الإشعارات ناقص في الكود', 'error'); return; }
-  try { await savePushToken(user, true); }
-  catch (e) {
-    showToast(e.message === 'denied' ? 'الإشعارات متقفلة من إعدادات الجهاز' : e.message === 'unsupported' ? (IS_IOS ? 'ضيفي التطبيق للشاشة الرئيسية الأول' : 'الجهاز ده مش بيدعم إشعارات الموبايل') : ('مقدرتش أسجّل الجهاز: ' + (e.message || e)), 'error');
-    return;
-  }
-  showToast('بجرّب الإشعار…', 'info');
-  const r = await callPushWorker('/test');
-  const b = (r && r.body) || {};
-  if (!r || r.status !== 200) showToast('الـ Worker رفض (' + (r ? r.status : '?') + '): ' + (b.error || 'غير معروف'), 'error');
-  else if (!b.total) showToast('الجهاز مش مسجّل عند السيرفر — جرّب تاني', 'error');
-  else if (b.sent === b.total) showToast('✅ اتبعت الإشعار — لو ماظهرش اتأكد من إعدادات الإشعارات في الموبايل', 'success');
-  else showToast('⚠️ وصل ' + b.sent + ' من ' + b.total + ' — ' + ((b.errors || [])[0] || 'غير معروف'), 'error');
-};
 function notifNeedsEnable() { return notifOn() && isPushConfigured() && pushSupported() && Notification.permission === 'default'; }
 function updateNotifBtn() {
   const el = document.getElementById('notif-state'); if (!el) return;
