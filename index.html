@@ -84,6 +84,8 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-h
 .check-box:active{transform:scale(.92);}
 .check-box.att-box{background:rgba(46,204,113,0.08);border-color:rgba(46,204,113,0.25);}
 .check-box.att-box.checked{background:rgba(46,204,113,0.15);border-color:var(--success);color:var(--success);}
+.check-box.gift-box{background:rgba(233,168,48,0.10);border-color:rgba(233,168,48,0.35);color:inherit;}
+.check-box.gift-box.checked{background:rgba(46,204,113,0.15);border-color:var(--success);color:var(--success);}
 .stat-card.g .stat-num{color:#f1c40f;}
 
 .list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;}
@@ -606,6 +608,7 @@ body{background:var(--bg)}
         <div id="manual-results"></div>
       </div>
       <div class="filter-row" style="margin:12px 0 2px"><button class="filter-chip" id="bday-chip-att" onclick="toggleBdayFilter('att')">🎂 أعياد ميلاد الشهر</button></div>
+      <div id="bday-gift-summary" style="display:none;font-size:12px;color:var(--text-dim);margin:6px 2px 0"></div>
       <div class="list-header">
         <span class="section-title">قائمة اليوم</span>
       </div>
@@ -4005,6 +4008,8 @@ function renderTodayList() {
   });
   withoutTime.sort((a,b) => a.name.localeCompare(b.name, 'ar'));
   const sorted = bdayOn.att ? [...filtered].sort(bdaySort) : [...withTime, ...withoutTime];
+  { const gs = document.getElementById('bday-gift-summary');
+    if (gs) { gs.style.display = bdayOn.att ? 'block' : 'none'; if (bdayOn.att) gs.textContent = `🎁 خدوا الهدية: ${filtered.filter(giftTaken).length} من ${filtered.length}`; } }
 
   if (!sorted.length) { cont.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div>مفيش حد يطابق الفلتر ده النهارده</div>`; return; }
 
@@ -4018,6 +4023,7 @@ function renderTodayList() {
         ${by || bdayOn.att ? `<div class="s-sub">${bdayOn.att ? bdayLabel(s) + (by ? ' · ' : '') : ''}${by ? '✔ ' + String(by).replace(/&/g,'&amp;').replace(/</g,'&lt;') : ''}</div>` : ''}
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+        ${bdayOn.att ? `<div class="check-box gift-box${giftTaken(s)?' checked':''}" title="الهدية" onclick="toggleGift('${s.id}')">${giftTaken(s)?'✓':'🎁'}</div>` : ''}
         <div class="check-box att-box${present?' checked':''}" onclick="${present?`removeAttendance('${s.id}')`:`quickToggleAttendance('${s.id}')`}">${present?'✓':''}</div>
       </div>
     </div>`;
@@ -4030,7 +4036,7 @@ function updateStats() {
   const isAtt = s => !!todayAttendance[s.id];
   // الكروت التلاتة: إجمالي / حاضر / غائب (أو أعياد الشهر لو فلتر الأعياد)
   const present = base.filter(isAtt).length;
-  const c1 = ['إجمالي', base.length], c2 = ['حاضر', present], c3 = ['غائب', base.length - present];
+  const c1 = [bdayOn.att ? '🎂 أعياد الشهر' : 'إجمالي', base.length], c2 = ['حاضر', present], c3 = ['غائب', base.length - present];
   const set = (id, c) => { document.getElementById(id).textContent = c[1]; document.getElementById(id + '-label').textContent = c[0]; };
   set('stat-total', c1); set('stat-present', c2); set('stat-absent', c3);
 }
@@ -4141,6 +4147,19 @@ function birthParts(s) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((s && s.birt
 function isBdayThisMonth(s) { const b = birthParts(s); return !!b && b.m === new Date().getMonth() + 1; }
 function bdayLabel(s) { const b = birthParts(s); return b ? `🎂 ${b.d}/${b.m}` : ''; }
 function bdaySort(a, b) { return ((birthParts(a)?.d || 0) - (birthParts(b)?.d || 0)) || (a.name || '').localeCompare(b.name || '', 'ar'); }
+// الهدية: بنخزّن السنة اللي المخدوم استلم فيها هديته (giftYear)، فكل سنة بتبدأ من جديد
+const giftTaken = s => !!s && s.giftYear === new Date().getFullYear();
+window.toggleGift = (id) => {
+  const s = allStudents.find(x => x.id === id); if (!s) return;
+  const y = new Date().getFullYear(), got = giftTaken(s);
+  if (got && !confirm(`تشيل علامة استلام الهدية من "${s.name}"؟`)) return;
+  const val = got ? 0 : y;
+  s.giftYear = val; renderTodayList();
+  updateDoc(doc(db, 'students', id), { giftYear: val, updatedAt: serverTimestamp() })
+    .catch(e => { console.error('gift update failed:', e); s.giftYear = got ? y : 0; renderTodayList(); showToast('حصل خطأ في حفظ الهدية، جرب تاني', 'error'); });
+  bumpStudentsRev();
+  logActivity(got ? 'إلغاء استلام هدية' : 'استلام هدية عيد ميلاد', s.name);
+};
 // n = عدد أعياد الشهر في القايمة الحالية (قبل الفلتر)
 function updateBdayChip(scope, n) {
   const el = document.getElementById('bday-chip-' + scope); if (!el) return;
