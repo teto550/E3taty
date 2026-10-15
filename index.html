@@ -2648,7 +2648,7 @@ function listenOwnServantDoc(uid) {
     if (roleOrClassChanged) {
       applyClassRestrictionUI();
       if (todayAttendanceUnsub) restartTodayListeners();
-      loadStudents().then(() => {
+      if (studentsLoaded) loadStudents().then(() => { // لو المخدومات لسه متحمّلوش مفيش داعي نقراهم دلوقتي — هيتحمّلوا لما يفتح تبويب يحتاجهم
         updateStats(); renderTodayList();
         if (document.getElementById('tab-filters')?.style.display === 'block') renderFilterList();
         if (document.getElementById('tab-messages')?.style.display === 'block') renderWaTab();
