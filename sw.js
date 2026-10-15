@@ -82,7 +82,7 @@ self.addEventListener('push', event => {
   event.waitUntil((async () => {
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     if (!d.force && wins.some(c => c.visibilityState === 'visible')) return;
-    await self.registration.showNotification(d.title || 'اعتاتي', {
+    await self.registration.showNotification(d.title || 'خدمة إعدادي', {
       body: d.body || '', icon: 'icon-513.png', image: 'icon-513.png', badge: 'badge-96.png',
       tag: d.tag || 'e3taty-push', dir: 'rtl', lang: 'ar', data: { url: d.url || './' }
     });
@@ -116,10 +116,10 @@ const FB_CFG = { apiKey: "AIzaSyCluCLDVy4ojnqI4XFCbsRFL8gH1GKjnzI", authDomain: 
 const withTimeout = (p, ms, msg) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(msg)), ms))]);
 async function hasSyncFlag() { try { return !!(await (await caches.open(SYNC_FLAG_CACHE)).match('./__pending')); } catch (e) { return false; } }
 async function clearSyncFlag() { try { await (await caches.open(SYNC_FLAG_CACHE)).delete('./__pending'); } catch (e) {} }
-async function notifyPendingWrites() {
+async function notifyPendingWrites(why) {
   try {
-    await self.registration.showNotification('اعتاتي', {
-      body: 'فيه بيانات لسه ماترفعتش. افتح البرنامج والنت شغال عشان تترفع.',
+    await self.registration.showNotification('خدمة إعدادي', {
+      body: 'فيه بيانات لسه ماترفعتش. افتح البرنامج والنت شغال عشان تترفع.' + (why ? ' (' + why + ')' : ''),
       icon: 'icon-513.png', badge: 'badge-96.png', tag: APP + '-pending-sync', dir: 'rtl', lang: 'ar', data: { url: './' }
     });
   } catch (e) {}
@@ -158,8 +158,8 @@ async function flushPending(lastChance) {
   let res = null;
   try { res = await runFlush(); } catch (err) { console.warn('background flush failed:', err); }
   if (res && res.done) { await clearSyncFlag(); return; }
-  if (res && res.reason) { await notifyPendingWrites(); return; } // مينفعش من الـ SW: نبلّغ المستخدم ونوقف
-  if (lastChance) { await notifyPendingWrites(); return; }
+  if (res && res.reason) { await notifyPendingWrites(res.reason); return; } // مينفعش من الـ SW: نبلّغ المستخدم ونوقف
+  if (lastChance) { await notifyPendingWrites('retry'); return; }
   throw new Error('flush-failed'); // المتصفح هيعيد المحاولة بعد شوية
 }
 self.addEventListener('sync', event => {
