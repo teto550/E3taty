@@ -605,6 +605,7 @@ body{background:var(--bg)}
         </div>
         <div id="manual-results"></div>
       </div>
+      <div class="filter-row" style="margin:12px 0 2px"><button class="filter-chip" id="bday-chip-att" onclick="toggleBdayFilter('att')">🎂 أعياد ميلاد الشهر</button></div>
       <div class="list-header">
         <span class="section-title">قائمة اليوم</span>
       </div>
@@ -631,6 +632,8 @@ body{background:var(--bg)}
         </div>
                 <label class="field-label">اسم الأم <span style="font-weight:400">(اختياري)</span></label>
         <input type="text" id="new-mother-name" class="field-input" placeholder="اسم الأم" style="margin-bottom:14px">
+        <label class="field-label">🎂 تاريخ الميلاد <span style="font-weight:400">(اختياري)</span></label>
+        <input type="date" id="new-birth" class="field-input" dir="ltr" style="margin-bottom:14px">
         <label class="field-label">أرقام التليفون * <span style="font-weight:400">(لازم رقم واحد على الأقل)</span></label>
         <div class="phones-wrap">
           <input type="tel" id="new-phone-father" class="field-input" placeholder="تليفون الأب" dir="ltr" style="margin-bottom:8px">
@@ -646,6 +649,7 @@ body{background:var(--bg)}
         <input type="text" id="students-search-input" placeholder="🔍 ابحث عن مخدوم بالاسم…" oninput="renderStudentsList()" autocomplete="off">
       </div>
       <div class="filter-row" id="class-chips" style="margin-bottom:12px"></div>
+      <div class="filter-row" style="margin-bottom:12px"><button class="filter-chip" id="bday-chip-stu" onclick="toggleBdayFilter('stu')">🎂 أعياد ميلاد الشهر</button></div>
       <div id="students-list"><div class="loading"><div class="spinner"></div>جاري التحميل…</div></div>
     </div>
 
@@ -663,6 +667,7 @@ body{background:var(--bg)}
               <button class="filter-chip" onclick="setAbsenceFilter(1,this)">غاب آخر مرة</button>
               <button class="filter-chip" onclick="setAbsenceFilter(2,this)">غاب آخر مرتين</button>
               <button class="filter-chip" onclick="setAbsenceFilter(3,this)">غاب آخر 3 مرات</button>
+              <button class="filter-chip" onclick="setAbsenceFilter(4,this)">غاب آخر 4 مرات</button>
             </div>
           </div>
         </details>
@@ -688,6 +693,7 @@ body{background:var(--bg)}
       </div>
 
 
+      <div class="filter-row" style="margin-bottom:12px"><button class="filter-chip" id="bday-chip-fil" onclick="toggleBdayFilter('fil')">🎂 أعياد ميلاد الشهر</button></div>
       <div class="list-header">
         <span class="section-title">النتائج</span>
         <span id="filter-count" style="font-size:12px;color:var(--text-dim)"></span>
@@ -726,6 +732,7 @@ body{background:var(--bg)}
               <button class="filter-chip" onclick="setWaAbsenceFilter(1,this)">غاب آخر مرة</button>
               <button class="filter-chip" onclick="setWaAbsenceFilter(2,this)">غاب آخر مرتين</button>
               <button class="filter-chip" onclick="setWaAbsenceFilter(3,this)">غاب آخر 3 مرات</button>
+              <button class="filter-chip" onclick="setWaAbsenceFilter(4,this)">غاب آخر 4 مرات</button>
             </div>
           </div>
         </details>
@@ -750,6 +757,7 @@ body{background:var(--bg)}
         </details>
       </div>
 
+      <div class="filter-row" style="margin-bottom:12px"><button class="filter-chip" id="bday-chip-wa" onclick="toggleBdayFilter('wa')">🎂 أعياد ميلاد الشهر</button></div>
       <div class="filter-row" id="wa-group-chips" style="margin-bottom:12px">
         <button class="filter-chip active" onclick="setWaGroupFilter('all',this)">👥 الكل</button>
         <button class="filter-chip" onclick="setWaGroupFilter('notAdded',this)">🆕 لسه مش متضاف للجروب</button>
@@ -1079,6 +1087,8 @@ body{background:var(--bg)}
       </div>
       <label class="field-label">اسم الأم <span style="font-weight:400">(اختياري)</span></label>
       <input type="text" id="edit-mother-name" class="field-input" placeholder="اسم الأم" style="margin-bottom:14px">
+        <label class="field-label">🎂 تاريخ الميلاد <span style="font-weight:400">(اختياري)</span></label>
+        <input type="date" id="edit-birth" class="field-input" dir="ltr" style="margin-bottom:14px">
       <label class="field-label">أرقام التليفون * <span style="font-weight:400">(لازم رقم واحد على الأقل)</span></label>
       <div class="edit-phones-wrap">
         <input type="tel" id="edit-phone-father" class="field-input" placeholder="تليفون الأب" dir="ltr" style="margin-bottom:8px">
@@ -2919,6 +2929,7 @@ window.addStudent = async () => {
     address,
     addressMap,
     motherName: document.getElementById('new-mother-name').value.trim(),
+    birthDate: document.getElementById('new-birth').value || '',
     gender:  'female',
     ...buildPhoneFields(father, mother, student, [], null),
     createdAt: serverTimestamp(),
@@ -2926,7 +2937,7 @@ window.addStudent = async () => {
     classSection: targetClass
   };
   await addDoc(collection(db,'students'), data); bumpStudentsRev();
-  ['new-name','new-address','new-map','new-mother-name','new-phone-father','new-phone-mother','new-phone-student']
+  ['new-name','new-address','new-map','new-mother-name','new-birth','new-phone-father','new-phone-mother','new-phone-student']
     .forEach(id => { document.getElementById(id).value = ''; });
   showToast('تمت الإضافة ✓', 'success');
   await loadStudents();
@@ -3346,7 +3357,9 @@ function renderStudentsList() {
   if (cf === 'none') list = list.filter(s => !s.classSection);
   else if (cf && cf !== 'all') list = list.filter(s => s.classSection === cf);
 
-  list = [...list].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+  updateBdayChip('stu', list.filter(isBdayThisMonth).length);
+  if (bdayOn.stu) list = list.filter(isBdayThisMonth);
+  list = [...list].sort(bdayOn.stu ? bdaySort : (a, b) => a.name.localeCompare(b.name, 'ar'));
 
   stuListCount = list.length;
   updateStuCount();
@@ -3359,7 +3372,7 @@ function renderStudentsList() {
     return `<div class="student-item">
       <div class="s-info">
         <div class="s-name">${eh(s.name)}</div>
-        <div class="s-sub" style="margin-top:3px">${classBadge}</div>
+        <div class="s-sub" style="margin-top:3px">${classBadge}${s.birthDate ? ` <span style="margin-right:6px">${bdayLabel(s)}</span>` : ''}</div>
       </div>
       <button class="action-btn" onclick="openProfile('${s.id}')">👤</button>
       <button class="action-btn" onclick="openEditModal('${s.id}')">✏️</button>
@@ -3541,6 +3554,8 @@ function waHasPhone(s) { return !!getWaPhone(s); }
 
 function waRecipientsSource() {
   let list = [...classScope(ownClassStudents())]; // الرسائل تفضل لمخدومين فصل الخادمة بس
+  updateBdayChip('wa', list.filter(isBdayThisMonth).length);
+  if (bdayOn.wa) list = list.filter(isBdayThisMonth);
   const dates = attSessionDates();
   if (waAbsenceFilter !== 'all' && dates.length > 0) {
     const n = parseInt(waAbsenceFilter);
@@ -3979,7 +3994,9 @@ function renderTodayList() {
   if (!allStudents.length) { cont.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div>أضف مخدومين أولاً</div>`; return; }
 
   const visibleClasses = [currentClassTab];
-  const filtered = allStudents.filter(s => visibleClasses.includes(s.classSection));
+  let filtered = allStudents.filter(s => visibleClasses.includes(s.classSection));
+  updateBdayChip('att', filtered.filter(isBdayThisMonth).length);
+  if (bdayOn.att) filtered = filtered.filter(isBdayThisMonth);
   const withTime = filtered.filter(s => todayListRelevantTime(s) != null);
   const withoutTime = filtered.filter(s => todayListRelevantTime(s) == null);
   withTime.sort((a,b) => {
@@ -3987,7 +4004,7 @@ function renderTodayList() {
     return todayListSortOrder === 'first' ? diff : -diff;
   });
   withoutTime.sort((a,b) => a.name.localeCompare(b.name, 'ar'));
-  const sorted = [...withTime, ...withoutTime];
+  const sorted = bdayOn.att ? [...filtered].sort(bdaySort) : [...withTime, ...withoutTime];
 
   if (!sorted.length) { cont.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div>مفيش حد يطابق الفلتر ده النهارده</div>`; return; }
 
@@ -3998,7 +4015,7 @@ function renderTodayList() {
       ${studentAvatarHTML(s,'s-avatar')}
       <div class="s-info">
         <div class="s-name">${eh(s.name)}</div>
-        ${by ? `<div class="s-sub">✔ ${String(by).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>` : ''}
+        ${by || bdayOn.att ? `<div class="s-sub">${bdayOn.att ? bdayLabel(s) + (by ? ' · ' : '') : ''}${by ? '✔ ' + String(by).replace(/&/g,'&amp;').replace(/</g,'&lt;') : ''}</div>` : ''}
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
         <div class="check-box att-box${present?' checked':''}" onclick="${present?`removeAttendance('${s.id}')`:`quickToggleAttendance('${s.id}')`}">${present?'✓':''}</div>
@@ -4009,7 +4026,7 @@ function renderTodayList() {
 
 function updateStats() {
   const classesToCount = [currentClassTab];
-  const base = allStudents.filter(s => classesToCount.includes(s.classSection));
+  const base = allStudents.filter(s => classesToCount.includes(s.classSection) && (!bdayOn.att || isBdayThisMonth(s)));
   const isAtt = s => !!todayAttendance[s.id];
   // الكروت التلاتة: إجمالي / حاضر / غائب (أو أعياد الشهر لو فلتر الأعياد)
   const present = base.filter(isAtt).length;
@@ -4118,6 +4135,26 @@ window.manualMarkAndClear = async (id) => {
   input.focus();
 };
 
+// ===== أعياد الميلاد =====
+const bdayOn = { att:false, stu:false, fil:false, wa:false };
+function birthParts(s) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((s && s.birthDate) || ''); return m ? { y:+m[1], m:+m[2], d:+m[3] } : null; }
+function isBdayThisMonth(s) { const b = birthParts(s); return !!b && b.m === new Date().getMonth() + 1; }
+function bdayLabel(s) { const b = birthParts(s); return b ? `🎂 ${b.d}/${b.m}` : ''; }
+function bdaySort(a, b) { return ((birthParts(a)?.d || 0) - (birthParts(b)?.d || 0)) || (a.name || '').localeCompare(b.name || '', 'ar'); }
+// n = عدد أعياد الشهر في القايمة الحالية (قبل الفلتر)
+function updateBdayChip(scope, n) {
+  const el = document.getElementById('bday-chip-' + scope); if (!el) return;
+  el.classList.toggle('active', !!bdayOn[scope]);
+  el.textContent = '🎂 أعياد ميلاد الشهر' + (n != null ? ` (${n})` : '');
+}
+window.toggleBdayFilter = (scope) => {
+  bdayOn[scope] = !bdayOn[scope];
+  if (scope === 'att') renderTodayList();
+  else if (scope === 'stu') renderStudentsList();
+  else if (scope === 'fil') renderFilterList();
+  else if (scope === 'wa') { waChecked = new Set(waRecipientsSource().filter(waHasPhone).map(s => s.id)); renderWaRecipientsList(); }
+};
+
 // ===== FILTERS =====
 
 window.setAbsenceFilter = (v, btn) => {
@@ -4157,6 +4194,8 @@ function renderFilterList() {
     list = list.filter(s => allowed.includes(s.classSection));
   }
   list = classScope(list);
+  updateBdayChip('fil', list.filter(isBdayThisMonth).length);
+  if (bdayOn.fil) list = list.filter(isBdayThisMonth);
   if (absenceFilter !== 'all' && dates.length > 0) {
     const n = parseInt(absenceFilter);
     const lastDates = dates.slice(-n);
@@ -4167,7 +4206,7 @@ function renderFilterList() {
     const lastDates = dates.slice(-n);
     list = list.filter(s => lastDates.length === n && lastDates.every(d => !!allAttendance[d]?.[s.id]));
   }
-  list = [...list].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+  list = [...list].sort(bdayOn.fil ? bdaySort : (a, b) => a.name.localeCompare(b.name, 'ar'));
   document.getElementById('filter-count').textContent = `${list.length} مخدوم`;
   if (!list.length) {
     cont.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div>لا يوجد نتائج</div>`;
@@ -4180,7 +4219,7 @@ function renderFilterList() {
       ${studentAvatarHTML(s,'s-avatar')}
       <div class="s-info">
         <div class="s-name">${eh(s.name)}</div>
-        <div class="s-sub">حضر ${attCount} مرة</div>
+        <div class="s-sub">حضر ${attCount} مرة${s.birthDate ? ' · ' + bdayLabel(s) : ''}</div>
       </div>
       <button class="action-btn" onclick="openProfile('${s.id}')">👤 ملف</button>
       <button class="action-btn" onclick="openEditModal('${s.id}')">✏️ تعديل</button>
@@ -4267,6 +4306,7 @@ window.openProfile = (id) => {
   const fields = [];
   if (s.address) fields.push({ icon:'📝', key:'ملاحظات', val: String(s.address).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>') });
   if (s.addressMap && /^https?:\/\//i.test(s.addressMap)) fields.push({ icon:'🗺️', key:'الموقع على الخريطة', link: s.addressMap });
+  { const b = birthParts(s); if (b) { const age = new Date().getFullYear() - b.y; fields.push({ icon:'🎂', key:'تاريخ الميلاد', val: `${b.d}/${b.m}/${b.y}` + (age > 0 && age < 100 ? ` (${age} سنة السنة دي)` : '') }); } }
   if (s.motherName) fields.push({ icon:'👩', key:'اسم الأم', val: String(s.motherName).replace(/&/g,'&amp;').replace(/</g,'&lt;') });
   studentPhoneEntries(s).forEach(e => fields.push({ icon:'📞', key: e.label, val: e.val, phone: true, idx: e.idx }));
   // attendance history
@@ -6605,6 +6645,7 @@ window.openEditModal = (id) => {
   document.getElementById('edit-address').value = s.address || '';
   document.getElementById('edit-map').value     = s.addressMap || '';
   document.getElementById('edit-mother-name').value = s.motherName || '';
+  document.getElementById('edit-birth').value = s.birthDate || '';
   document.getElementById('edit-avatar').textContent = s.name.trim()[0] || '؟';
   document.getElementById('edit-sub').textContent    = s.name;
 
@@ -6647,6 +6688,7 @@ window.saveEditStudent = async () => {
     address,
     addressMap,
     motherName: document.getElementById('edit-mother-name').value.trim(),
+    birthDate: document.getElementById('edit-birth').value || '',
     ...buildPhoneFields(father, mother, student, others, prev),
   };
   try {
