@@ -1310,7 +1310,7 @@ body{background:var(--bg)}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendEmailVerification, EmailAuthProvider, reauthenticateWithCredential }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, addDoc, getDocs, deleteDoc, doc, getDoc, setDoc, updateDoc, query, where, orderBy, limit, onSnapshot, serverTimestamp, Timestamp, writeBatch, increment, arrayUnion, arrayRemove }
+import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, addDoc, getDocs, getDocsFromCache, getDocFromCache, deleteDoc, doc, getDoc, setDoc, updateDoc, query, where, orderBy, limit, onSnapshot, serverTimestamp, Timestamp, writeBatch, increment, arrayUnion, arrayRemove }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
@@ -1373,9 +1373,17 @@ function countReads(label, n) {
 }
 // بديل getDocs بيحسب القراءة الفعلية بس لو جايه من السيرفر (مش من الكاش المحلي)
 async function countedGetDocs(q, label) {
-  const snap = await getDocs(q);
+  let snap = null;
+  // أوفلاين: بنقرا من الكاش المحلي على طول بدل ما نستنى مهلة السيرفر
+  if (!navigator.onLine) { try { snap = await getDocsFromCache(q); } catch (e) {} }
+  if (!snap) snap = await getDocs(q);
   if (!(snap.metadata && snap.metadata.fromCache)) countReads(label, snap.docs.length);
   return snap;
+}
+// قراءة مستند واحد: أوفلاين من الكاش على طول (من غير ما نستنى مهلة السيرفر)
+async function getDocFast(ref) {
+  if (!navigator.onLine) { try { const s = await getDocFromCache(ref); if (s.exists()) return s; } catch (e) {} }
+  return getDoc(ref);
 }
 // بتتنادى جوه أي onSnapshot عشان تحسب أول نتيجة + أي تغيير جديد يوصل بعد كده (مش كل المستندات تاني كل مرة)
 function countSnapshotReads(label, snap) {
@@ -2488,7 +2496,7 @@ async function handleSignedInUser(user) {
   stopPendingSelfWatch();
   try {
     const ref = doc(db,'servants',user.uid);
-    let snap = await getDoc(ref);
+    let snap = await getDocFast(ref);
     if (!snap.exists()) {
       // حساب موجود في Firebase Auth بس مش مسجل كخادمة في الموقع ده
       if (ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.email||'').toLowerCase())) {
@@ -2775,7 +2783,7 @@ window.forceRefreshStudents = async () => { await loadStudents(true); showToast(
 async function loadStudents(force = false) {
   await waitClassesReady();
   let rev = null, delRev = 0, classFieldMig = false;
-  try { const m = await getDoc(doc(db,'config','meta')); const d = m.exists() ? m.data() : {}; rev = d.studentsRev || 0; delRev = d.studentsDelRev || 0; classFieldMig = !!d.classFieldMig; } catch(e) {}
+  try { const m = await getDocFast(doc(db,'config','meta')); const d = m.exists() ? m.data() : {}; rev = d.studentsRev || 0; delRev = d.studentsDelRev || 0; classFieldMig = !!d.classFieldMig; } catch(e) {}
   // الخادمة بيقرا مخدومين نطاقه بس. المخدومين اللي لسه من غير فصل مش بيتجابوا بالاستعلام قبل ما الأدمن يعمل ترحيل واحد (classSection:'')، فلحد وقتها بنقرا الكل زي الأول
   let scope = readScopeClasses();
   if (!classFieldMig) scope = [];
@@ -3821,7 +3829,17 @@ async function markPresent(studentId) {
   if (todayAttendance[studentId]) return false;
   const attId = todayKey() + '_' + studentId; // نفس المعرّف من أي جهاز = مفيش تسجيل مزدوج لو اتنين سجّلوا نفس المخدوم في نفس اللحظة
   const ref = doc(db,'attendance', attId);
-  await setDoc(ref, { studentId, date:todayKey(), classSection: clsOf(studentId), timestamp:serverTimestamp(), byUid: currentUid || '', byName: currentName || '' });
+  const day = todayKey();
+  // الكتابة بتتسجّل محليًا فورًا وبتتبعت لما النت يرجع — مش بنستنى رد السيرفر عشان التسجيل يشتغل أوفلاين
+  setDoc(ref, { studentId, date:day, classSection: clsOf(studentId), timestamp:serverTimestamp(), byUid: currentUid || '', byName: currentName || '' }).catch(e => {
+    console.error('attendance write failed:', e);
+    if (todayAttendance[studentId] === ref.id) {
+      delete todayAttendance[studentId]; delete todayAttendanceTime[studentId]; delete todayAttendanceBy[studentId];
+      if (allAttendance[day]) delete allAttendance[day][studentId];
+      updateStats(); renderTodayList();
+    }
+    showToast('الحضور ماتسجلش على السيرفر — مفيش صلاحية', 'error');
+  });
   todayAttendanceBy[studentId] = currentName || '';
   todayAttendance[studentId] = ref.id;
   todayAttendanceTime[studentId] = Date.now();
@@ -3836,7 +3854,7 @@ window.removeAttendance = async (studentId) => {
   if (!confirm(`هتشيل حضور "${s?.name}" من النهارده؟`)) return;
   const docId = todayAttendance[studentId];
   (window._myRemovals = window._myRemovals || new Set()).add(studentId); setTimeout(() => window._myRemovals.delete(studentId), 5000);
-  if (docId) await deleteDoc(doc(db,'attendance',docId));
+  if (docId) deleteDoc(doc(db,'attendance',docId)).catch(e => console.error('attendance delete failed:', e)); // من غير await عشان يشتغل أوفلاين
   delete todayAttendance[studentId];
   delete todayAttendanceTime[studentId];
   if (allAttendance[todayKey()]) delete allAttendance[todayKey()][studentId];
@@ -6683,7 +6701,18 @@ document.addEventListener('pointerdown', e => {
 <script>
 // ===== تثبيت التطبيق =====
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then(reg => {
+      // أول مرة: نخلّي الـ Service Worker يحفظ كل اللي الصفحة حمّلته (سكربتات فايربيز والخطوط…) عشان التطبيق يفتح أوفلاين من أول جلسة
+      setTimeout(() => {
+        try {
+          const urls = [...new Set([location.href.split('#')[0], ...performance.getEntriesByType('resource').map(r => r.name)])].filter(u => /^https?:/.test(u));
+          const sw = navigator.serviceWorker.controller || reg.active;
+          if (sw) sw.postMessage({ type: 'CACHE_URLS', urls });
+        } catch (e) {}
+      }, 4000);
+    }).catch(() => {});
+  });
 }
 let deferredPrompt = window.__bip;
 const IS_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -6821,6 +6850,17 @@ window.addEventListener('appinstalled', hideInstallBanner);
 // البانر لازم يظهر على أي موبايل مش مثبّت عليه البرنامج — مش بس لما كروم يبعت الإشارة (واتساب/فيسبوك/Samsung/Firefox مبيبعتوهاش)
 const IS_MOBILE = IS_IOS || /Android|Mobile/i.test(navigator.userAgent);
 if (IS_MOBILE) checkShowBanner();
+</script>
+<div id="offline-bar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:2147483000;background:#b9770e;color:#fff;text-align:center;font:700 12px Cairo,sans-serif;padding:6px 10px;padding-top:calc(6px + env(safe-area-inset-top,0px));direction:rtl"></div>
+<script>
+(function () {
+  var bar = document.getElementById('offline-bar'), t = null;
+  function show(msg, bg, ms) { bar.textContent = msg; bar.style.background = bg; bar.style.display = 'block'; clearTimeout(t); if (ms) t = setTimeout(function () { bar.style.display = 'none'; }, ms); }
+  function off() { show('📴 مفيش نت — اللي تسجّله بيتحفظ على الموبايل ويتبعت لوحده لما النت يرجع', '#b9770e', 0); }
+  window.addEventListener('offline', off);
+  window.addEventListener('online', function () { show('✅ رجع النت — بنبعت اللي اتسجّل', '#1e8449', 3500); });
+  if (!navigator.onLine) off();
+})();
 </script>
 </body>
 </html>
