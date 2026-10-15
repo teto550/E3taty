@@ -908,6 +908,7 @@ body{background:var(--bg)}
             <button class="btn-primary" onclick="openRoleEditor('')" style="flex:1;margin:0">➕ دور جديد</button>
             <button class="btn-primary" onclick="openServantsImportModal()" style="flex:1;margin:0;background:var(--surface2);color:var(--text);border:1px solid var(--border)">📥 رفع شيت خادمات</button>
           </div>
+          <button class="btn-primary" onclick="openServantsAssignModal()" style="width:100%;margin:-4px 0 14px;background:var(--surface2);color:var(--text);border:1px solid var(--border)">🧩 توزيع الخادمات المسجلين على الفصول من شيت</button>
           <div id="roles-cards"><div class="loading"><div class="spinner"></div>جاري التحميل…</div></div>
         </div>
 
@@ -987,6 +988,24 @@ body{background:var(--bg)}
       <input type="file" id="sv-import-file" class="field-input" accept=".xlsx,.xls,.csv" onchange="handleServantsImportFile(event)">
       <div id="sv-import-preview" style="font-size:13px;line-height:1.9;margin:6px 0 14px"></div>
       <button class="btn-primary" id="sv-import-confirm-btn" onclick="confirmServantsImport()" style="display:none">✓ استيراد</button>
+    </div>
+  </div>
+</div>
+
+<div id="sv-assign-modal" class="modal-overlay" style="display:none;z-index:360" onclick="if(event.target.id==='sv-assign-modal')closeServantsAssignModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:16px;font-weight:900">🧩 توزيع الخادمات من شيت</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:2px">بيعرض الخادمات المسجلين اللي أسماءهم في الشيت، وإنت بتختار فصول كل واحدة وبتحفظ</div>
+      </div>
+      <button class="modal-close" onclick="closeServantsAssignModal()">✕</button>
+    </div>
+    <div style="padding:18px">
+      <input type="file" id="sv-assign-file" class="field-input" accept=".xlsx,.xls,.csv" onchange="handleServantsAssignFile(event)">
+      <div id="sv-assign-summary" style="font-size:13px;line-height:1.9;margin:6px 0 10px"></div>
+      <div id="sv-assign-list"></div>
+      <button class="btn-primary" id="sv-assign-save-btn" onclick="confirmServantsAssign()" style="display:none;position:sticky;bottom:0;margin-top:12px">💾 حفظ التوزيع</button>
     </div>
   </div>
 </div>
@@ -5492,7 +5511,7 @@ function renderServantProfileClassChips(s) {
 
 // بيطبّق خريطة (فصول الخادمة + مين مسؤول فيها) على الخادمة ده لوحده: بيلاقي/يعمل دور لكل نوع (نوع + فصول بالظبط) وبيربطه بيه،
 // ومبنلمسش أي دور قديم فباقي الخادمات مش بيتأثروا
-async function applyServantClassMap(sid, classes, supSet) {
+async function applyServantClassMap(sid, classes, supSet, quiet = false) {
   if (!rolesLoadedFlag) await loadRolesOnce();
   const supList = classes.filter(c => supSet.has(c));
   const srvList = classes.filter(c => !supSet.has(c));
@@ -5516,6 +5535,7 @@ async function applyServantClassMap(sid, classes, supSet) {
   };
   await updateDoc(doc(db,'servants',sid), svPatch);
   await patchServantLocal(sid, svPatch);
+  if (quiet) return; // التوزيع الجماعي: بنحدّث الأدوار مرة واحدة في الآخر ومبنفتحش ملف الخادمة
   await loadRolesOnce(true);
   openServantProfile(sid);
 }
@@ -6340,6 +6360,153 @@ window.confirmServantsImport = async () => {
     console.error(err);
     showToast('حصل خطأ أثناء الرفع', 'error');
   } finally { btn.disabled = false; btn.textContent = '✓ استيراد'; }
+};
+
+// ===== توزيع الخادمات المسجلين على الفصول من شيت (عمود لكل فصل وتحته الأسماء) =====
+// بيطابق أسماء الشيت مع الخادمات اللي في البرنامج، بيعرض الموجودين بس، والفصل المكتوب في الشيت بييجي متعلّم مسبقًا والأدمن بيعدّل ويحفظ
+let svAsg = [], svAsgUnmatched = [], svAsgUnknownCols = [];
+const svSameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+window.openServantsAssignModal = () => {
+  document.getElementById('sv-assign-file').value = '';
+  document.getElementById('sv-assign-summary').innerHTML = '';
+  document.getElementById('sv-assign-list').innerHTML = '';
+  document.getElementById('sv-assign-save-btn').style.display = 'none';
+  svAsg = []; svAsgUnmatched = []; svAsgUnknownCols = [];
+  document.getElementById('sv-assign-modal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+};
+window.closeServantsAssignModal = () => {
+  document.getElementById('sv-assign-modal').style.display = 'none';
+  document.body.style.overflow = '';
+};
+// اسم من الشيت → خادمة مسجلة: تطابق تام الأول، وبعدين تطابق تقريبي (كلمتين على الأقل مشتركين وكل كلمات الأقصر موجودة، أو أول اسمين نفسهم) بشرط يكون مرشح واحد بس
+function svAsgMatch(name, pool) {
+  const k = nameKey(name); if (!k) return null;
+  const exact = pool.filter(x => nameKey(x.name || '') === k);
+  if (exact.length === 1) return { sv: exact[0], exact: true };
+  if (exact.length > 1) return null;
+  const a = k.split(' ');
+  if (a.length < 2) return null;
+  let best = 0, cands = [];
+  pool.forEach(x => {
+    const b = nameKey(x.name || '').split(' ');
+    if (b.length < 2) return;
+    const common = a.filter(t => b.includes(t)).length;
+    let sc = 0;
+    if (common >= 2 && common === Math.min(a.length, b.length)) sc = 1 + common / Math.max(a.length, b.length);
+    else if (a[0] === b[0] && a[1] === b[1]) sc = 1;
+    if (!sc) return;
+    if (sc > best) { best = sc; cands = [x]; } else if (sc === best) cands.push(x);
+  });
+  return cands.length === 1 ? { sv: cands[0], exact: false } : null;
+}
+window.handleServantsAssignFile = async (e) => {
+  const f = e.target.files && e.target.files[0];
+  const sum = document.getElementById('sv-assign-summary'), list = document.getElementById('sv-assign-list'), btn = document.getElementById('sv-assign-save-btn');
+  btn.style.display = 'none'; list.innerHTML = ''; svAsg = []; svAsgUnmatched = []; svAsgUnknownCols = [];
+  if (!f) { sum.innerHTML = ''; return; }
+  if (currentRole !== 'admin') { sum.innerHTML = 'الميزة دي للأدمن بس'; return; }
+  sum.innerHTML = '<div class="loading"><div class="spinner"></div>جاري القراءة…</div>';
+  try {
+    await ensureAllClassesForAdmin();
+    if (!servantsLoadedFlag) await loadServantsOnce();
+    if (!rolesLoadedFlag) await loadRolesOnce();
+    const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+    let ws = wb.Sheets[wb.SheetNames.find(n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: null }).some(r => (r || []).some(v => v != null && String(v).trim() !== ''))) || wb.SheetNames[0]];
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+    const clsOf = h => {
+      const c = svCanon(h); if (!c) return null;
+      return allClasses.find(x => svCanon(x.name) === c) || allClasses.find(x => { const n = svCanon(x.name); return n.length > 3 && (n.endsWith(c) || c.endsWith(n)); }) || null;
+    };
+    // صف العناوين = أول صف فيه اسم فصل معروف، ولو مفيش بناخد أول صف مش فاضي
+    let hi = aoa.findIndex(r => (r || []).some(h => h != null && clsOf(h)));
+    if (hi < 0) hi = Math.max(0, aoa.findIndex(r => (r || []).some(v => v != null && String(v).trim() !== '')));
+    const head = aoa[hi] || [];
+    const pool = cachedServants.filter(x => x.role !== 'admin' && x.status !== 'rejected');
+    const rows = new Map(); // servant id → row
+    let totalNames = 0;
+    head.forEach((h, ci) => {
+      if (h == null || String(h).trim() === '') return;
+      const cls = clsOf(h);
+      if (!cls) svAsgUnknownCols.push(String(h).trim());
+      const seen = new Set();
+      aoa.slice(hi + 1).forEach(r => {
+        const n = String((r || [])[ci] == null ? '' : r[ci]).replace(/\s+/g, ' ').trim();
+        if (!n) return;
+        const k = nameKey(n); if (seen.has(k)) return; seen.add(k);
+        totalNames++;
+        const m = svAsgMatch(n, pool);
+        if (!m) { svAsgUnmatched.push({ name: n, cls: cls ? cls.name : String(h).trim() }); return; }
+        let row = rows.get(m.sv.id);
+        if (!row) { row = { sv: m.sv, sheetNames: new Set(), sheetCls: new Set(), exact: true }; rows.set(m.sv.id, row); }
+        row.sheetNames.add(n); if (!m.exact) row.exact = false;
+        if (cls) row.sheetCls.add(cls.id);
+      });
+    });
+    const order = new Map(allClasses.map((c, i) => [c.id, i]));
+    svAsg = [...rows.values()].map(r => {
+      const cur = normalizeAssignedClasses(r.sv.assignedClass);
+      const fromSheet = allClasses.filter(c => r.sheetCls.has(c.id)).map(c => c.id);
+      return { ...r, cur, sel: new Set(fromSheet.length ? fromSheet : cur) };
+    }).sort((a, b) => (order.get([...a.sel][0]) ?? 999) - (order.get([...b.sel][0]) ?? 999) || (a.sv.name || '').localeCompare(b.sv.name || '', 'ar'));
+    sum.innerHTML = `لقيت <b>${svAsg.length}</b> خادمة من الشيت مسجلين في البرنامج (من ${totalNames} اسم)`
+      + (svAsgUnmatched.length ? `، و<b>${svAsgUnmatched.length}</b> اسم مش مسجلين لسه` : '')
+      + (svAsgUnknownCols.length ? `<br>⚠️ أعمدة مش مطابقة لأي فصل في البرنامج: ${escH(svAsgUnknownCols.join('، '))} — اختار فصولهم بإيدك` : '');
+    renderServantsAssign();
+  } catch (err) {
+    console.error(err);
+    sum.innerHTML = '<span style="color:var(--danger)">مقدرتش أقرأ الملف — اتأكد إنه Excel سليم</span>';
+  }
+};
+function svAsgChangedRows() { return svAsg.filter(r => r.sel.size && !svSameSet([...r.sel], r.cur)); }
+function svAsgUpdateBtn() {
+  const btn = document.getElementById('sv-assign-save-btn'); if (!btn) return;
+  const n = svAsgChangedRows().length;
+  btn.style.display = svAsg.length ? 'block' : 'none';
+  btn.disabled = !n;
+  btn.textContent = n ? `💾 حفظ التوزيع (${n} خادمة)` : 'مفيش تغييرات للحفظ';
+}
+function renderServantsAssign() {
+  const list = document.getElementById('sv-assign-list');
+  const unm = svAsgUnmatched.length ? `<details style="margin-top:12px;font-size:12px;color:var(--text-dim)"><summary style="cursor:pointer">أسماء في الشيت مش مسجلة في البرنامج (${svAsgUnmatched.length})</summary><div style="line-height:1.9;margin-top:6px">${svAsgUnmatched.map(u => `${escH(u.name)} <span style="opacity:.7">— ${escH(u.cls)}</span>`).join('<br>')}</div></details>` : '';
+  if (!svAsg.length) { list.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div>مفيش أي اسم من الشيت مطابق لخادمة مسجلة</div>` + unm; svAsgUpdateBtn(); return; }
+  list.innerHTML = svAsg.map((r, i) => {
+    const sheetTxt = [...r.sheetNames].join(' / ');
+    const diff = [...r.sheetNames].some(n => nameKey(n) !== nameKey(r.sv.name || ''));
+    const cur = r.cur.length ? r.cur.map(classLabel).join('، ') : 'كل الفصول';
+    return `<div class="servant-item" style="flex-direction:column;align-items:stretch;gap:8px;padding:12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px">${escH(r.sv.name || '—')}</b>${r.sv.status === 'pending' ? '<span style="font-size:11px;color:#e67e22">⏳ في انتظار الموافقة</span>' : ''}${!r.exact ? '<span style="font-size:11px;color:#e67e22">⚠️ تطابق تقريبي — راجع الاسم</span>' : ''}</div>
+      <div style="font-size:11px;color:var(--text-dim);line-height:1.7">${diff ? `في الشيت: ${escH(sheetTxt)}<br>` : ''}فصولها دلوقتي: ${escH(cur)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${allClasses.map(c => `<button type="button" class="filter-chip${r.sel.has(c.id) ? ' active' : ''}" onclick="svAsgToggle(${i},'${c.id}',this)">${c.emoji || '📘'} ${escH(c.name)}</button>`).join('')}</div>
+    </div>`;
+  }).join('') + unm;
+  svAsgUpdateBtn();
+}
+window.svAsgToggle = (i, cid, el) => {
+  const r = svAsg[i]; if (!r) return;
+  if (r.sel.has(cid)) r.sel.delete(cid); else r.sel.add(cid);
+  el.classList.toggle('active', r.sel.has(cid));
+  svAsgUpdateBtn();
+};
+window.confirmServantsAssign = async () => {
+  if (currentRole !== 'admin') return;
+  const todo = svAsgChangedRows();
+  if (!todo.length) return;
+  if (!confirm(`هتتغير فصول ${todo.length} خادمة. تكمل؟`)) return;
+  const btn = document.getElementById('sv-assign-save-btn');
+  btn.disabled = true;
+  let done = 0, failed = 0;
+  for (const r of todo) {
+    try {
+      await applyServantClassMap(r.sv.id, allClasses.filter(c => r.sel.has(c.id)).map(c => c.id), new Set(), true);
+      done++;
+    } catch (err) { console.error('assign failed:', r.sv.name, err); failed++; }
+    btn.textContent = `جاري الحفظ… ${done + failed}/${todo.length}`;
+  }
+  try { await loadRolesOnce(true); } catch (err) { console.error(err); }
+  closeServantsAssignModal();
+  showToast(failed ? `اتحفظ ${done} وفشل ${failed} — جرب تاني للباقي` : `اتوزعت ${done} خادمة على الفصول ✓`, failed ? 'error' : 'success');
+  logActivity('توزيع خادمات على الفصول من شيت', `${done} خادمة`);
 };
 
 window.openRoleEditor = (roleId) => {
