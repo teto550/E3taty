@@ -13,9 +13,11 @@ service cloud.firestore {
     function myClasses() { return myDoc().get('assignedClass', '').split(','); }
     function classOk(c) { return isAdmin() || (isApproved() && c is string && c != '' && c in myClasses()); }
     // الأدمن الأساسي (نفس ADMIN_EMAILS في index.html) — لازم تتغير هنا لو اتغيرت هناك (والعكس).
+    // لازم الإيميل يكون متفعّل (email_verified) عشان محدش يسجّل بإيميل الأدمن من غير ما يملكه ويبقى أدمن.
     function isPrimaryAdminEmail() {
       return isSignedIn()
-        && request.auth.token.email in ['devidemele@gmail.com'];
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in ['devidemele@gmail.com'];
     }
 
     // ===== servants (الحسابات) =====
@@ -28,7 +30,7 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.auth.uid == uid && (
         (request.resource.data.status == 'pending'
           && request.resource.data.role == 'servant'
-          && request.resource.data.email == request.auth.token.email
+          && request.resource.data.email.lower() == request.auth.token.email.lower()
           && !('sscCount' in request.resource.data)
           && !('meetingCount' in request.resource.data)
           && !('prepCount' in request.resource.data))
@@ -58,14 +60,16 @@ service cloud.firestore {
 
     // ===== roles (الأدوار + قايمة الأسماء الجاهزة) =====
     // القراءة مفتوحة عشان فورم التسجيل يعرض "اختار اسمك". الأدمن بس يكتب،
-    // وأي حساب مسجل يقدر بس يشيل اسمه من pendingNames (بعد ما يسجل مباشرة).
+    // وأي حساب سجّل فعلاً (عنده مستند خادمة) يقدر بس يشيل اسمه من pendingNames: من غير إضافة، وبحد أقصى 5 أسماء في الطلب
+    // (الاسم الواحد ممكن يتكرر بصيغ كتابة مختلفة) — عشان حساب pending مايمسحش قايمة الأسماء كلها.
     match /roles/{roleId} {
       allow read: if true;
       allow create, delete: if isAdmin();
       allow update: if isAdmin()
-        || (isSignedIn()
+        || (hasServantDoc()
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingNames'])
-            && request.resource.data.pendingNames.toSet().difference(resource.data.pendingNames.toSet()).size() == 0);
+            && request.resource.data.pendingNames.toSet().difference(resource.data.pendingNames.toSet()).size() == 0
+            && resource.data.pendingNames.toSet().difference(request.resource.data.pendingNames.toSet()).size() <= 5);
     }
 
     // ===== students (المخدومين) — الخادمة تقرا وتعدّل مخدومين فصولها بس (classSection) =====
