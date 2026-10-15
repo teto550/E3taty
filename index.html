@@ -3694,7 +3694,9 @@ function buildVcfContent(list) {
   return list.map(s => {
     const phone = getWaPhone(s);
     const num = normalizeEgyptPhone(phone);
-    const cls = s.classSection ? ` - ${classLabel(s.classSection)}` : '';
+    // اسم الفصل في جهة الاتصال: من غير همزات ("اولي اعدادي") وبكلمة "فصل" قبله، عشان البحث في الموبايل يلاقيها على طول
+    const clsName = normalizeArabic(classLabel(s.classSection));
+    const cls = s.classSection ? ` - ${clsName.startsWith('فصل ') ? clsName : 'فصل ' + clsName}` : '';
     const name = vcfEscape(s.name + cls);
     return `BEGIN:VCARD\r\nVERSION:3.0\r\nFN:${name}\r\nTEL;TYPE=CELL:+${num}\r\nEND:VCARD`;
   }).join('\r\n');
