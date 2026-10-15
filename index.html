@@ -2129,13 +2129,17 @@ async function bioIdbDel(k) {
   const db0 = await bioIdb();
   return new Promise((res, rej) => { const t = db0.transaction(BIO_STORE, 'readwrite'); t.objectStore(BIO_STORE).delete(k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); });
 }
-async function bioSupported() {
+// بيرجّع '' لو البصمة مدعومة، أو سبب واضح بالعربي لو لأ (عشان قسم البصمة يفضل ظاهر عند كل الخدام ويقولهم ليه مش شغالة)
+async function bioUnsupportedReason() {
   try {
-    if (!(window.PublicKeyCredential && window.isSecureContext && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())) return false;
-    if (PublicKeyCredential.getClientCapabilities) { const c = await PublicKeyCredential.getClientCapabilities(); if (c && c['extension:prf'] === false) return false; }
-    return true;
-  } catch { return false; }
+    if (!window.isSecureContext) return 'لازم تفتح التطبيق من الرابط الرسمي (https) علشان البصمة تشتغل.';
+    if (!window.PublicKeyCredential) return 'المتصفح ده مش بيدعم الدخول بالبصمة. افتح التطبيق من Chrome (أندرويد) أو Safari (آيفون).';
+    if (!(await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())) return 'الموبايل ده مفيهوش بصمة أو قفل شاشة متفعّل. فعّل بصمة أو قفل الشاشة من إعدادات الموبايل وبعدين جرب تاني.';
+    if (PublicKeyCredential.getClientCapabilities) { const c = await PublicKeyCredential.getClientCapabilities(); if (c && c['extension:prf'] === false) return 'المتصفح أو نسخة النظام عندك مش بيدعموا البصمة الآمنة. حدّث المتصفح (Chrome) أو النظام وجرب تاني.'; }
+    return '';
+  } catch { return 'معرفناش نتأكد إن البصمة مدعومة على الجهاز ده. جرب تفتح التطبيق من Chrome.'; }
 }
+async function bioSupported() { return (await bioUnsupportedReason()) === ''; }
 // ===== البصمة الآمنة (v2) =====
 // الباسورد بيتشفّر بمفتاح بيتولّد من البصمة نفسها (WebAuthn PRF) ومبيتخزّنش في أي مكان.
 // يعني مستحيل أي سكريبت أو شخص يفك التشفير من غير ما صباعك يتسجّل فعلاً على الموبايل.
@@ -2295,8 +2299,17 @@ window.declineBioOffer = () => {
 async function refreshBioSettings() {
   const sec = document.getElementById('settings-bio-section');
   if (!sec) return;
-  if (!(await bioSupported())) { sec.style.display = 'none'; return; }
-  sec.style.display = 'block';
+  sec.style.display = 'block'; // القسم ظاهر عند كل الخدام، ولو الجهاز مش بيدعم البصمة بنوضّح السبب بدل ما نخفيه
+  const why = await bioUnsupportedReason();
+  const bioBtn = document.getElementById('settings-bio-btn');
+  if (why) {
+    document.getElementById('settings-bio-status').textContent = '⚠️ ' + why;
+    bioBtn.style.display = 'none';
+    document.getElementById('settings-bio-pass-wrap').style.display = 'none';
+    window._bioSettingsStep = 'unsupported';
+    return;
+  }
+  bioBtn.style.display = '';
   const d = bioData(), mine = d && d.email === currentEmail;
   document.getElementById('settings-bio-status').textContent = mine
     ? 'البصمة مفعّلة على الموبايل ده ✅ تقدر تدخل بيها من شاشة الدخول.'
@@ -2308,6 +2321,7 @@ async function refreshBioSettings() {
 }
 window.toggleBioFromSettings = async () => {
   const step = window._bioSettingsStep;
+  if (step === 'unsupported') return;
   if (step === 'off') { await bioDisable(); showToast('اتلغت البصمة', 'info'); refreshBioSettings(); return; }
   const wrap = document.getElementById('settings-bio-pass-wrap');
   if (step === 'ask') {
@@ -3424,14 +3438,37 @@ window.insertWaNamePlaceholder = () => {
 };
 
 // ===== SAVED MESSAGE TEMPLATES (memory) =====
-async function loadWaTemplates() {
-  if (waTemplatesLoaded) return;
+// كل فصل له رسائله الخاصة: الرسالة بتتحفظ بـ classSection، وبتظهر لكل خدام الفصل ده بس
+function waTplClass() {
+  if (currentRole === 'admin') return currentClassTab || '';
+  const al = getAllowedAssignedClasses();
+  if (al.length === 1) return al[0];
+  if (al.includes(currentClassTab)) return currentClassTab;
+  return al[0] || currentClassTab || '';
+}
+let waTemplatesKey = '', waTemplatesAt = 0;
+async function loadWaTemplates(force = false) {
+  const cls = waTplClass();
+  const key = currentRole + '|' + cls;
+  // بنعرض اللي عندنا فورًا، وبنجيب الجديد من السيرفر لو الفصل اتغير أو عدّى أكتر من نص دقيقة (عشان رسائل زمايلها في الفصل تظهر)
+  if (!force && waTemplatesLoaded && waTemplatesKey === key && Date.now() - waTemplatesAt < 30000) { renderWaTemplatesList(); return; }
+  if (waTemplatesKey !== key) { waTemplates = []; waTemplatesLoaded = false; renderWaTemplatesList(); }
   try {
-    const snap = await countedGetDocs(query(collection(db,'messageTemplates'), orderBy('name')), 'messageTemplates');
-    waTemplates = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-    waTemplatesLoaded = true;
+    let docs;
+    if (currentRole === 'admin') {
+      docs = (await countedGetDocs(query(collection(db,'messageTemplates')), 'messageTemplates (أدمن)')).docs;
+    } else {
+      if (!cls) { waTemplates = []; waTemplatesLoaded = true; waTemplatesKey = key; renderWaTemplatesList(); return; }
+      docs = (await countedGetDocs(query(collection(db,'messageTemplates'), where('classSection','==', cls)), 'messageTemplates (الفصل)')).docs;
+    }
+    // الأدمن بيشوف رسائل الفصل المفتوح + الرسائل القديمة اللي اتحفظت قبل ما الرسائل تتربط بالفصول (عشان يقدر يمسحها)
+    waTemplates = docs.map(d => ({ id:d.id, ...d.data() }))
+      .filter(t => currentRole === 'admin' ? (!t.classSection || t.classSection === cls) : t.classSection === cls)
+      .sort((a,b) => (a.name || '').localeCompare(b.name || '', 'ar'));
+    waTemplatesLoaded = true; waTemplatesKey = key; waTemplatesAt = Date.now();
   } catch(e) {
     console.error(e);
+    if (typeof showToast === 'function' && !waTemplates.length) showToast('معرفناش نحمّل الرسائل المحفوظة، جرب تاني', 'error');
   }
   renderWaTemplatesList();
 }
@@ -3453,11 +3490,13 @@ function renderWaTemplatesList() {
 window.saveCurrentWaMessage = async () => {
   const text = document.getElementById('wa-message').value.trim();
   if (!text) { showToast('اكتب نص الرسالة الأول', 'error'); return; }
+  const cls = waTplClass();
+  if (!cls) { showToast('اختار الفصل الأول علشان الرسالة تتحفظ له', 'error'); return; }
   const name = prompt('اكتب اسم للرسالة دي (علشان تلاقيها بسرعة):');
   if (!name || !name.trim()) return;
   try {
-    const ref = await addDoc(collection(db,'messageTemplates'), { name: name.trim(), text, timestamp: serverTimestamp() });
-    waTemplates.push({ id: ref.id, name: name.trim(), text });
+    const ref = await addDoc(collection(db,'messageTemplates'), { name: name.trim(), text, classSection: cls, byUid: auth.currentUser?.uid || '', timestamp: serverTimestamp() });
+    waTemplates.push({ id: ref.id, name: name.trim(), text, classSection: cls });
     waTemplates.sort((a,b) => a.name.localeCompare(b.name,'ar'));
     renderWaTemplatesList();
     showToast('اتحفظت الرسالة ✓', 'success');
@@ -4550,6 +4589,30 @@ function exportRangeQuery(col) {
   const d = new Date(); d.setDate(d.getDate() - parseInt(v, 10));
   return query(collection(db, col), where('date', '>=', toLocalDateKey(d)));
 }
+// حضور المخدومين للتصدير: قواعد Firestore بترفض أي استعلام عن attendance مش مقيّد بـ classSection لغير الأدمن،
+// فالخادمة لازم تقرا بفصولها بس (نفس نطاق باقي الشاشات) والفلترة بالتاريخ تتعمل مع الفصل أو على الجهاز لو الـ index مش موجود
+async function exportAttendanceDocs() {
+  const scope = currentRole === 'admin' ? [] : readScopeClasses();
+  if (!scope.length) return (await countedGetDocs(exportRangeQuery('attendance'), 'attendance (تصدير إكسل)')).docs;
+  const v = document.getElementById('export-range')?.value || '90';
+  let from = '';
+  if (v !== 'all') { const d = new Date(); d.setDate(d.getDate() - parseInt(v, 10)); from = toLocalDateKey(d); }
+  const out = [];
+  for (let i = 0; i < scope.length; i += 30) {
+    const chunk = scope.slice(i, i + 30);
+    let docs;
+    try {
+      const q = from ? query(collection(db, 'attendance'), where('classSection', 'in', chunk), where('date', '>=', from)) : query(collection(db, 'attendance'), where('classSection', 'in', chunk));
+      docs = (await countedGetDocs(q, 'attendance (تصدير إكسل - نطاق الخادمة)')).docs;
+    } catch (e) {
+      if (!from) throw e;
+      console.warn('تصدير الحضور: الـ index المركب مش موجود، هنفلتر بالتاريخ على الجهاز', e && e.message);
+      docs = (await countedGetDocs(query(collection(db, 'attendance'), where('classSection', 'in', chunk)), 'attendance (تصدير إكسل - بدون index)')).docs.filter(x => (x.data().date || '') >= from);
+    }
+    out.push(...docs);
+  }
+  return out;
+}
 window.runExportExcel = async () => {
   await ensureAllClassesForAdmin();
   const includeAtt = document.getElementById('export-opt-att').checked;
@@ -4574,7 +4637,7 @@ window.runExportExcel = async () => {
     if (anyStudentPart) await ensureStudents();
     if (includeAtt) {
       const expAtt = {};
-      const a = await countedGetDocs(exportRangeQuery('attendance'), 'attendance (تصدير إكسل)');
+      const a = { docs: await exportAttendanceDocs() };
       a.docs.forEach(x => { const d = x.data(); (expAtt[d.date] ||= {})[d.studentId] = x.id; });
       XLSX.utils.book_append_sheet(wb, buildAttSheet(expAtt), 'حضور');
       nameParts.push('حضور');

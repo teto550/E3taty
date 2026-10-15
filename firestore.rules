@@ -100,8 +100,14 @@ service cloud.firestore {
     }
 
     // ===== messageTemplates =====
+    // كل فصل له رسائله: بتتقرا وتتكتب لخدام الفصل ده بس (classSection)، والأدمن الكل (وفيهم الرسائل القديمة من غير فصل)
+    // الاستعلام لازم يحتوي where('classSection','==',فصلها)
     match /messageTemplates/{id} {
-      allow read, write: if isApproved();
+      allow read: if classOk(resource.data.get('classSection', ''));
+      allow create: if classOk(request.resource.data.get('classSection', ''));
+      allow update: if classOk(resource.data.get('classSection', ''))
+                    && classOk(request.resource.data.get('classSection', ''));
+      allow delete: if classOk(resource.data.get('classSection', ''));
     }
 
     // ===== activityLog =====
