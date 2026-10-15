@@ -85,7 +85,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-h
 .check-box.att-box{background:rgba(46,204,113,0.08);border-color:rgba(46,204,113,0.25);}
 .check-box.att-box.checked{background:rgba(46,204,113,0.15);border-color:var(--success);color:var(--success);}
 .check-box.gift-box{background:rgba(233,168,48,0.10);border-color:rgba(233,168,48,0.35);color:inherit;}
-.check-box.gift-box.checked{background:rgba(46,204,113,0.15);border-color:var(--success);color:var(--success);}
+.check-box.gift-box.checked{background:rgba(233,168,48,0.18);border-color:#e9a830;color:#e9a830;}
 .stat-card.g .stat-num{color:#f1c40f;}
 
 .list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;}
@@ -4035,16 +4035,16 @@ function renderTodayList() {
   cont.innerHTML = sorted.map(s => {
     const present = !!todayAttendance[s.id];
     const by = present ? todayAttendanceBy[s.id] : '';
-    return `<div class="student-item ${present?'present':''}${remoteFlash.has(s.id)?' remote-flash':''}">
+    return `<div class="student-item ${present?'present':''}${remoteFlash.has(s.id)?' remote-flash':''}"${bdayOn.att ? ' style="position:relative"' : ''}>
       ${studentAvatarHTML(s,'s-avatar')}
-      <div class="s-info">
+      <div class="s-info"${bdayOn.att ? ' style="max-width:calc(50% - 68px)"' : ''}>
         <div class="s-name">${eh(s.name)}</div>
         ${by || bdayOn.att ? `<div class="s-sub">${bdayOn.att ? bdayLabel(s) + (by ? ' · ' : '') : ''}${by ? '✔ ' + String(by).replace(/&/g,'&amp;').replace(/</g,'&lt;') : ''}</div>` : ''}
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
-        ${bdayOn.att ? `<div class="check-box gift-box${giftTaken(s)?' checked':''}" title="الهدية" onclick="toggleGift('${s.id}')">${giftTaken(s)?'✓':'🎁'}</div>` : ''}
         <div class="check-box att-box${present?' checked':''}" onclick="${present?`removeAttendance('${s.id}')`:`quickToggleAttendance('${s.id}')`}">${present?'✓':''}</div>
       </div>
+      ${bdayOn.att ? `<div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);display:flex;justify-content:center;pointer-events:none"><div class="check-box gift-box${giftTaken(s)?' checked':''}" title="الهدية" style="pointer-events:auto" onclick="toggleGift('${s.id}')">${giftTaken(s)?'✓':'🎁'}</div></div>` : ''}
     </div>`;
   }).join('');
 }
