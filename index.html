@@ -4041,7 +4041,7 @@ function renderTodayList() {
         <div class="s-name">${eh(s.name)}</div>
         ${by || bdayOn.att ? `<div class="s-sub">${bdayOn.att ? bdayLabel(s) + (by ? ' · ' : '') : ''}${by ? '✔ ' + String(by).replace(/&/g,'&amp;').replace(/</g,'&lt;') : ''}</div>` : ''}
       </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0${bdayOn.att ? ';margin-left:auto' : ''}">
         <div class="check-box att-box${present?' checked':''}" onclick="${present?`removeAttendance('${s.id}')`:`quickToggleAttendance('${s.id}')`}">${present?'✓':''}</div>
       </div>
       ${bdayOn.att ? `<div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);display:flex;justify-content:center;pointer-events:none"><div class="check-box gift-box${giftTaken(s)?' checked':''}" title="الهدية" style="pointer-events:auto" onclick="toggleGift('${s.id}')">${giftTaken(s)?'✓':'🎁'}</div></div>` : ''}
