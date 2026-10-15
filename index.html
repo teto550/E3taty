@@ -84,8 +84,10 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-h
 .check-box:active{transform:scale(.92);}
 .check-box.att-box{background:rgba(46,204,113,0.08);border-color:rgba(46,204,113,0.25);}
 .check-box.att-box.checked{background:rgba(46,204,113,0.15);border-color:var(--success);color:var(--success);}
-.check-box.gift-box{background:rgba(233,168,48,0.10);border-color:rgba(233,168,48,0.35);color:inherit;}
-.check-box.gift-box.checked{background:rgba(233,168,48,0.18);border-color:#e9a830;color:#e9a830;}
+.gift-slot{flex:1;display:flex;align-items:center;justify-content:center;min-width:38px;}
+.gift-icon{width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:30px;line-height:1;cursor:pointer;transition:transform .15s;user-select:none;}
+.gift-icon:active{transform:scale(.85);}
+.check-box.gift-box{background:rgba(241,196,15,0.18);border-color:#f1c40f;color:#f1c40f;}
 .stat-card.g .stat-num{color:#f1c40f;}
 
 .list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;}
@@ -600,6 +602,7 @@ body{background:var(--bg)}
         <div class="stat-card t"><div class="stat-num" id="stat-total">0</div><div class="stat-label" id="stat-total-label">إجمالي</div></div>
         <div class="stat-card p"><div class="stat-num" id="stat-present">0</div><div class="stat-label" id="stat-present-label">حاضر</div></div>
         <div class="stat-card a"><div class="stat-num" id="stat-absent">0</div><div class="stat-label" id="stat-absent-label">غائب</div></div>
+        <div class="stat-card g" id="stat-gift-card" style="display:none"><div class="stat-num" id="stat-gift">0</div><div class="stat-label">🎁 استلموا الهدية</div></div>
       </div>
       <div class="manual-wrap" style="margin-top:14px">
         <div class="search-box">
@@ -608,7 +611,6 @@ body{background:var(--bg)}
         <div id="manual-results"></div>
       </div>
       <div class="filter-row" style="margin:12px 0 2px"><button class="filter-chip" id="bday-chip-att" onclick="toggleBdayFilter('att')">🎂 أعياد ميلاد الشهر</button></div>
-      <div id="bday-gift-summary" style="display:none;font-size:12px;color:var(--text-dim);margin:6px 2px 0"></div>
       <div class="list-header">
         <span class="section-title">قائمة اليوم</span>
       </div>
@@ -4027,24 +4029,24 @@ function renderTodayList() {
   });
   withoutTime.sort((a,b) => a.name.localeCompare(b.name, 'ar'));
   const sorted = bdayOn.att ? [...filtered].sort(bdaySort) : [...withTime, ...withoutTime];
-  { const gs = document.getElementById('bday-gift-summary');
-    if (gs) { gs.style.display = bdayOn.att ? 'block' : 'none'; if (bdayOn.att) gs.textContent = `🎁 خدوا الهدية: ${filtered.filter(giftTaken).length} من ${filtered.length}`; } }
 
   if (!sorted.length) { cont.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div>مفيش حد يطابق الفلتر ده النهارده</div>`; return; }
 
   cont.innerHTML = sorted.map(s => {
     const present = !!todayAttendance[s.id];
     const by = present ? todayAttendanceBy[s.id] : '';
-    return `<div class="student-item ${present?'present':''}${remoteFlash.has(s.id)?' remote-flash':''}"${bdayOn.att ? ' style="position:relative"' : ''}>
+    return `<div class="student-item ${present?'present':''}${remoteFlash.has(s.id)?' remote-flash':''}">
       ${studentAvatarHTML(s,'s-avatar')}
-      <div class="s-info"${bdayOn.att ? ' style="max-width:calc(50% - 68px)"' : ''}>
+      <div class="s-info"${bdayOn.att ? ' style="flex:0 1 auto"' : ''}>
         <div class="s-name">${eh(s.name)}</div>
         ${by || bdayOn.att ? `<div class="s-sub">${bdayOn.att ? bdayLabel(s) + (by ? ' · ' : '') : ''}${by ? '✔ ' + String(by).replace(/&/g,'&amp;').replace(/</g,'&lt;') : ''}</div>` : ''}
       </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0${bdayOn.att ? ';margin-left:auto' : ''}">
+      ${bdayOn.att ? `<div class="gift-slot">${giftTaken(s)
+        ? `<div class="check-box gift-box checked" title="استلم الهدية — اضغط للإلغاء" onclick="toggleGift('${s.id}')">✓</div>`
+        : `<div class="gift-icon" title="اضغط لتسجيل استلام الهدية" onclick="toggleGift('${s.id}')">🎁</div>`}</div>` : ''}
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
         <div class="check-box att-box${present?' checked':''}" onclick="${present?`removeAttendance('${s.id}')`:`quickToggleAttendance('${s.id}')`}">${present?'✓':''}</div>
       </div>
-      ${bdayOn.att ? `<div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);display:flex;justify-content:center;pointer-events:none"><div class="check-box gift-box${giftTaken(s)?' checked':''}" title="الهدية" style="pointer-events:auto" onclick="toggleGift('${s.id}')">${giftTaken(s)?'✓':'🎁'}</div></div>` : ''}
     </div>`;
   }).join('');
 }
@@ -4058,6 +4060,12 @@ function updateStats() {
   const c1 = [bdayOn.att ? '🎂 أعياد الشهر' : 'إجمالي', base.length], c2 = ['حاضر', present], c3 = ['غائب', base.length - present];
   const set = (id, c) => { document.getElementById(id).textContent = c[1]; document.getElementById(id + '-label').textContent = c[0]; };
   set('stat-total', c1); set('stat-present', c2); set('stat-absent', c3);
+  const gc = document.getElementById('stat-gift-card');
+  if (gc) {
+    gc.style.display = bdayOn.att ? '' : 'none';
+    document.getElementById('stat-gift').textContent = base.filter(giftTaken).length;
+    document.getElementById('att-stats-row').style.gridTemplateColumns = bdayOn.att ? '1fr 1fr 1fr 1fr' : '';
+  }
 }
 
 // ===== MANUAL SEARCH =====
