@@ -1636,15 +1636,18 @@ function readScopeClasses() {
     const grp = babyKgClasses().map(c => c.id);
     return grp.includes(currentClassTab) ? [...grp, ''] : [currentClassTab];
   }
-  const al = getAllowedAssignedClasses();
+  let al = getAllowedAssignedClasses();
   if (!al.length) return [];
+  // الخادمة اللي عندها أكتر من فصل: بتقرا الفصل اللي فاتحاه دلوقتي بس (مش كل فصولها مرة واحدة)
+  if (al.length > 1 && currentClassTab && al.includes(currentClassTab)) al = [currentClassTab];
   const grp = babyKgClasses().map(c => c.id);
   return [...new Set(al.some(id => grp.includes(id)) ? [...al, ...grp, ''] : al)].slice(0, 30);
 }
 async function waitClassesReady() { for (let i = 0; i < 40 && !allClasses.length; i++) await new Promise(r => setTimeout(r, 100)); }
 let lastReadScopeKey = '';
 function onAdminScopeChanged() {
-  if (currentRole !== 'admin') return;
+  // الأدمن، وكمان الخادمة اللي عندها أكتر من فصل (نطاقها بيتغير مع الفصل المفتوح)
+  if (currentRole !== 'admin' && getAllowedAssignedClasses().length < 2) return;
   const sk = readScopeClasses().join(',');
   if (sk === lastReadScopeKey) return;
   lastReadScopeKey = sk;
@@ -2801,10 +2804,11 @@ async function loadStudents(force = false) {
   const usable = cached && !force && Array.isArray(cached.list) && (cached.scope || '') === scopeKey && (rev !== null ? cached.delRev === delRev : (Date.now() - cached.ts < 12*3600*1000));
   if (usable && (rev === null || cached.rev === rev)) {
     allStudents = cached.list;
-  } else if (usable && (currentRole === 'admin' || !scope.length)) { // الخادمة المقيّدة بفصول بتعمل تحميل كامل لفصولها (صغير) بدل التحديث التزايدي، لأن الـ Rules بتمنع استعلام مش مقيّد بالفصل
+  } else if (usable) {
     try {
       const since = Timestamp.fromMillis(Math.max(0, (cached.maxUpd || 0) - 60000)); // هامش دقيقة للأمان
-      const snap = await countedGetDocs(query(collection(db,'students'), where('updatedAt','>=', since)), 'students (تحديث بالتغييرات بس)');
+      // التحديث التزايدي بيتقيّد بنفس نطاق الفصل (index: classSection + updatedAt) عشان ميقراش تغييرات فصول تانية
+      const snap = await countedGetDocs(scope.length ? query(collection(db,'students'), where('updatedAt','>=', since), where('classSection','in', scope)) : query(collection(db,'students'), where('updatedAt','>=', since)), 'students (تحديث بالتغييرات بس)');
       const map = new Map(cached.list.map(x => [x.id, x]));
       let seen = cached.maxUpd || 0;
       snap.docs.forEach(d => { const x = { id:d.id, ...d.data() }; seen = Math.max(seen, tsMs(x.updatedAt)); if (inScope(x)) map.set(d.id, x); else map.delete(d.id); });
