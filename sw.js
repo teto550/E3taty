@@ -3,7 +3,7 @@
 // ولو مفيش نت (أو النت بطيء جدًا) التطبيق بيفتح من الكاش.
 // سكربتات فايربيز والخطوط والمكتبات (نسخها ثابتة): cache-first.
 const APP = 'e3taty';
-const CACHE = APP + '-shell-v1';
+const CACHE = APP + '-shell-v2';
 const CORE = ['./', './index.html', './manifest.json', './icon-193.png', './icon-513.png', './badge-96.png'];
 const STATIC_CDN = [
   /^https:\/\/www\.gstatic\.com\/firebasejs\//,
@@ -46,7 +46,7 @@ async function networkFirst(req) {
   const nav = req.mode === 'navigate';
   const hit = (await cache.match(req, { ignoreSearch: true }))
     || (nav ? ((await cache.match('./index.html')) || (await cache.match('./'))) : undefined);
-  const net = fetch(req).then(res => { if (res && res.ok) cache.put(req, res.clone()).catch(() => {}); return res; });
+  const net = fetch(nav ? req.url : req, { cache: 'no-cache' }).then(res => { if (res && res.ok) cache.put(req, res.clone()).catch(() => {}); return res; });
   net.catch(() => {});
   if (!hit) return net;                                   // أول مرة: مفيش كاش، نستنى النت
   const slow = new Promise(r => setTimeout(() => r(null), 4000));
