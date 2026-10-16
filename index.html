@@ -1333,6 +1333,35 @@ body{background:var(--bg)}
 
 <div id="toast"></div>
 
+<script>
+// ===== Boot watchdog: لو الشاشة فضلت على اللوجو أكتر من 12 ثانية نعرض السبب وزر إصلاح =====
+(function(){
+  var errs = [];
+  function note(m){ try{ errs.push(String(m).slice(0,160)); }catch(e){} }
+  window.addEventListener('error', function(e){ note((e.message||'error') + (e.lineno ? ' @'+e.lineno : '')); });
+  window.addEventListener('unhandledrejection', function(e){ note('promise: ' + ((e.reason && e.reason.message) || e.reason)); });
+  setTimeout(function(){
+    var sp = document.getElementById('splash-screen');
+    if (!sp || sp.style.display === 'none') return;
+    var box = document.createElement('div');
+    box.style.cssText = 'margin-top:24px;max-width:340px;text-align:center;color:#e8eaf0;font:14px/1.9 Cairo,sans-serif;direction:rtl';
+    var ua = (navigator.userAgent.match(/Chrome\/(\d+)/)||[])[1] || '?';
+    box.innerHTML = '<div style="margin-bottom:10px">البرنامج واقف على التحميل 😕<br>لو مستمر، اضغط الزر ده يمسح الكاش ويعيد التحميل</div>'
+      + '<button id="bw-fix" style="padding:10px 22px;border:0;border-radius:12px;background:#4f8ef7;color:#fff;font:700 15px Cairo,sans-serif">إصلاح وإعادة تحميل</button>'
+      + '<div style="margin-top:12px;font-size:11px;opacity:.55;direction:ltr;word-break:break-all">Chrome/WebView v' + ua + (errs.length ? ' | ' + errs[0] : '') + (window.__bootErr ? ' | ' + window.__bootErr : '') + '</div>';
+    sp.appendChild(box);
+    document.getElementById('bw-fix').onclick = function(){
+      var done = function(){ location.reload(); };
+      try {
+        Promise.all([
+          navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function(rs){ return Promise.all(rs.map(function(r){ return r.unregister(); })); }) : 0,
+          window.caches ? caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){ return caches.delete(k); })); }) : 0
+        ]).then(done, done);
+      } catch(e){ done(); }
+    };
+  }, 12000);
+})();
+</script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendEmailVerification, EmailAuthProvider, reauthenticateWithCredential }
@@ -1373,10 +1402,12 @@ const isLocalDevelopment = ['localhost', '127.0.0.1', '::1'].includes(location.h
 // سيبه فاضي لو مش مفعّله، والبرنامج هيشتغل عادي.
 const RECAPTCHA_SITE_KEY = '6Le_8uktAAAAACBWXqGADoPshcKYYGh2Fv22tdd4';
 if (!isLocalDevelopment && RECAPTCHA_SITE_KEY) {
-  initializeAppCheck(app, {
-    provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY),
-    isTokenAutoRefreshEnabled: true
-  });
+  try {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY),
+      isTokenAutoRefreshEnabled: true
+    });
+  } catch (e) { console.warn('AppCheck init failed', e); window.__bootErr = 'AppCheck: ' + (e && e.message || e); }
 }
 
 const auth = getAuth(app);
@@ -1440,7 +1471,7 @@ async function countedGetDocs(q, label) {
 // قراءة مستند واحد: أوفلاين من الكاش على طول (من غير ما نستنى مهلة السيرفر)
 async function getDocFast(ref) {
   if (!navigator.onLine) { try { const s = await getDocFromCache(ref); if (s.exists()) return s; } catch (e) {} }
-  return getDoc(ref);
+  return Promise.race([getDoc(ref), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 20000))]);
 }
 // بتتنادى جوه أي onSnapshot عشان تحسب أول نتيجة + أي تغيير جديد يوصل بعد كده (مش كل المستندات تاني كل مرة)
 function countSnapshotReads(label, snap) {
@@ -4724,7 +4755,7 @@ window.runExportExcel = async () => {
     if (includeAtt) {
       const expAtt = {};
       const a = { docs: await exportAttendanceDocs() };
-      a.docs.forEach(x => { const d = x.data(); (expAtt[d.date] ||= {})[d.studentId] = x.id; });
+      a.docs.forEach(x => { const d = x.data(); (expAtt[d.date] = expAtt[d.date] || {})[d.studentId] = x.id; });
       XLSX.utils.book_append_sheet(wb, buildAttSheet(expAtt), 'حضور');
       nameParts.push('حضور');
     }
@@ -4745,7 +4776,7 @@ window.runExportExcel = async () => {
       if (includeServAtt) {
         const snap = await countedGetDocs(exportRangeQuery('servantAttendance'), 'servantAttendance (تصدير إكسل)');
         const byAct = {};
-        snap.docs.forEach(x => { const d = x.data(); if (!d.activity || !d.date || !d.servantId) return; ((byAct[d.activity] ||= {})[d.date] ||= {})[d.servantId] = true; });
+        snap.docs.forEach(x => { const d = x.data(); if (!d.activity || !d.date || !d.servantId) return; (byAct[d.activity] = byAct[d.activity] || {}); (byAct[d.activity][d.date] = byAct[d.activity][d.date] || {})[d.servantId] = true; });
         let added = 0;
         Object.keys(SERV_ATT_LABELS).forEach(act => {
           const ws = byAct[act] ? buildServantsAttSheet(act, byAct[act]) : null;
