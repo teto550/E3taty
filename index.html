@@ -1604,13 +1604,27 @@ html.light .class-badge.class-a,html.light .mon-role.sup{background:rgba(var(--a
     var box = document.createElement("div");
     box.style.cssText = "margin-top:24px;max-width:340px;text-align:center;color:#e8eaf0;font:14px/1.9 Cairo,sans-serif;direction:rtl";
     var ua = (navigator.userAgent.match(/Chrome\/(\d+)/) || [])[1] || "?";
-    box.innerHTML = '<div style="margin-bottom:10px">البرنامج واقف على التحميل 😕<br>لو مستمر، اضغط الزر ده يمسح الكاش ويعيد التحميل</div><button id="bw-fix" style="padding:10px 22px;border:0;border-radius:12px;background:#4f8ef7;color:#fff;font:700 15px Cairo,sans-serif">إصلاح وإعادة تحميل</button><div style="margin-top:12px;font-size:11px;opacity:.55;direction:ltr;word-break:break-all">Chrome/WebView v' + ua + (errs.length ? " | " + errs[0] : "") + (window.__bootErr ? " | " + window.__bootErr : "") + "</div>";
+    box.innerHTML = '<div style="margin-bottom:10px">البرنامج واقف على التحميل 😕<br>لو مستمر، اضغط الزر ده يمسح الكاش ويعيد التحميل</div><button id="bw-fix" style="padding:10px 22px;border:0;border-radius:12px;background:#4f8ef7;color:#fff;font:700 15px Cairo,sans-serif">إصلاح وإعادة تحميل</button><div style="margin-top:12px;font-size:11px;opacity:.55;direction:ltr;word-break:break-all">Chrome/WebView v' + ua + (errs.length ? " | " + errs[0] : "") + (window.__bootErr ? " | " + window.__bootErr : "") + " | stage:" + (window.__stage || "module-not-started") + "</div>";
     sp.appendChild(box);
     document.getElementById("bw-fix").onclick = function() {
       var done = function() {
         location.reload();
       };
       try {
+        try {
+          Object.keys(localStorage).forEach(function(k) {
+            if (k.indexOf("e3taty") === 0) localStorage.removeItem(k);
+          });
+        } catch (e) {
+        }
+        try {
+          if (indexedDB.databases) indexedDB.databases().then(function(dbs) {
+            dbs.forEach(function(d) {
+              if (d.name && (d.name.indexOf("firestore") === 0 || d.name.indexOf("e3taty") === 0)) indexedDB.deleteDatabase(d.name);
+            });
+          });
+        } catch (e) {
+        }
         Promise.all([
           navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function(rs) {
             return Promise.all(rs.map(function(r) {
@@ -1635,6 +1649,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendEmailVerification, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, addDoc as _addDoc, getDocs, getDocsFromCache, getDocFromCache, deleteDoc as _deleteDoc, doc, getDoc, setDoc as _setDoc, updateDoc as _updateDoc, query, where, orderBy, limit, onSnapshot, waitForPendingWrites, serverTimestamp, Timestamp, writeBatch as _writeBatch, increment, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
+window.__stage = "module-start";
 const ADMIN_EMAILS = ["devidemele@gmail.com"];
 const firebaseConfig = {
   apiKey: "AIzaSyCluCLDVy4ojnqI4XFCbsRFL8gH1GKjnzI",
@@ -1664,9 +1679,16 @@ if (!isLocalDevelopment && RECAPTCHA_SITE_KEY) {
   }
 }
 const auth = getAuth(app);
-const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentSingleTabManager() })
-});
+window.__stage = "auth-init";
+let db;
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentSingleTabManager() })
+  });
+} catch (e) {
+  window.__bootErr = "Firestore cache: " + (e && e.message || e);
+  db = initializeFirestore(app, {});
+}
 const SYNC_TAG = "flush-pending-writes", SYNC_FLAG_CACHE = "e3taty-sync-flag";
 async function setSyncFlag(on) {
   try {
@@ -1770,7 +1792,21 @@ async function getDocFast(ref) {
     } catch (e) {
     }
   }
-  return Promise.race([getDoc(ref), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 2e4))]);
+  let slow = false;
+  const net = getDoc(ref);
+  const cached = new Promise((res, rej) => setTimeout(async () => {
+    slow = true;
+    try {
+      const s = await getDocFromCache(ref);
+      if (s.exists()) {
+        res(s);
+        return;
+      }
+    } catch (e) {
+    }
+    setTimeout(() => rej(new Error("timeout")), 12e3);
+  }, 8e3));
+  return Promise.race([net, cached]);
 }
 function countSnapshotReads(label, snap) {
   var _a, _b;
@@ -3307,7 +3343,15 @@ function showPendingScreen(title, msg) {
     if (nb) nb.style.display = "none";
   }
 }
+setTimeout(() => {
+  var sp = document.getElementById("splash-screen");
+  if (window.__authFired || !sp || sp.style.display === "none") return;
+  window.__bootErr = (window.__bootErr ? window.__bootErr + " | " : "") + "auth-timeout";
+  showAuthScreen();
+}, 1e4);
 onAuthStateChanged(auth, async (user) => {
+  window.__authFired = true;
+  window.__stage = user ? "user-doc" : "login";
   stopHeartbeat();
   if (!user) {
     stopPendingSelfWatch();
