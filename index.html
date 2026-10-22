@@ -51,6 +51,14 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-h
 .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
 
 #app-screen{display:none;height:100dvh;flex-direction:column;}
+/* شريط المسار (breadcrumb) فوق: 🏠 الرئيسية ‹ 🏫 الفصول ‹ الفصل ‹ الحضور — أي خطوة تدوس عليها ترجع لها على طول */
+.crumb-bar{display:none;flex:0 0 auto;align-items:center;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);}
+.crumb-bar::-webkit-scrollbar{display:none;}
+.crumb-chip{flex:0 0 auto;white-space:nowrap;background:var(--surface);border:1px solid var(--border);border-radius:20px;color:var(--text-dim);font-family:'Cairo',sans-serif;font-size:12px;font-weight:600;padding:6px 14px;cursor:pointer;transition:all .2s;}
+.crumb-chip.active{background:rgba(var(--acc-rgb,79,142,247),.15);border-color:var(--accent);color:var(--accent);cursor:default;}
+.crumb-chip:not(.active):active{transform:scale(.97);}
+.crumb-sep{flex:0 0 auto;color:var(--text-dim);font-size:16px;line-height:1;}
+html.light .crumb-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:800;box-shadow:0 2px 8px rgba(var(--acc-rgb,79,142,247),0.3);}
 .top-bar{display:flex;align-items:center;justify-content:space-between;padding:calc(14px + env(safe-area-inset-top)) 18px 14px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:100;}
 .top-bar-title{font-size:17px;font-weight:700;}
 .top-bar-sub{font-size:11px;color:var(--text-dim);margin-top:2px;}
@@ -539,6 +547,8 @@ body{background:var(--bg)}
     </div>
     </div>
   </div>
+
+  <div class="crumb-bar" id="crumb-bar" aria-label="المسار"></div>
 
   <div class="app-content">
     <!-- GLOBAL CLASS TABS — فوق كل التابات التانية، وبيتحكم في الفصل المعروض في كل الشاشة -->
@@ -5892,15 +5902,120 @@ window.goBack = () => {
   else if (lvl === "picker" && hasSupHome()) goHome();
   else if (lvl === "adminClasses") goHome();
 };
+// ===== شريط المسار (breadcrumb): كل خطوة دخلتها بتتكتب فوق، وتدوس على أي واحدة ترجع لها على طول =====
+let crumbActions = [];
+function crumbTrail() {
+  const home = { label: "🏠 الرئيسية", go: () => goHome() };
+  const classChip = { label: classEmoji(currentClassTab) + " " + classLabel(currentClassTab), go: () => showClassHome() };
+  const lvl = navLevel();
+  const shown = (t) => { const el = document.getElementById("tab-" + t); return !!el && el.style.display === "block"; };
+  let prefix;
+  if (currentRole === "admin") prefix = [home, { label: "🏫 الفصول", go: () => showAdminClasses() }];
+  else if (hasSupHome()) prefix = needsClassPick() ? [home, { label: "🏫 الفصول", go: () => showClassPicker() }] : [home];
+  else if (needsClassPick()) prefix = [{ label: "🏫 الفصول", go: () => showClassPicker() }];
+  else prefix = [];
+  if (shown("roles")) return [home, { label: "🗂 الأدوار" }];
+  if (lvl === "adminClasses") return [home, { label: "🏫 الفصول" }];
+  if (lvl === "picker") return hasSupHome() ? [home, { label: "🏫 الفصول" }] : [];
+  if (lvl === "classHome") return prefix.length ? [...prefix, { label: classChip.label }] : [];
+  if (lvl === "tab") {
+    if (shown("monitor")) return [home, { label: "👥 الخادمات" }];
+    if (shown("classservants")) return [home, { label: classServScope === "all" ? "🏫 خادمات الفصول" : "👥 خادمات الفصل" }];
+    const titles = { attendance: "✅ الحضور", students: "🧒 المخدومين", filters: "📞 الافتقاد", messages: "📨 الرسائل" };
+    const cur = Object.keys(titles).find(shown);
+    return [...prefix, classChip, { label: titles[cur] || "" }];
+  }
+  return [];
+}
+function updateCrumbs() {
+  const bar = document.getElementById("crumb-bar");
+  if (!bar) return;
+  let trail = [];
+  try { trail = crumbTrail(); } catch (err) { trail = []; }
+  if (!trail.length) { bar.style.display = "none"; bar.innerHTML = ""; bar.dataset.sig = ""; crumbActions = []; return; }
+  const esc = (t) => String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  crumbActions = trail.map((c) => c.go || null);
+  const html = trail.map((c, i) => {
+    const last = i === trail.length - 1;
+    const chip = last || !c.go
+      ? `<button type="button" class="crumb-chip active" aria-current="page">${esc(c.label)}</button>`
+      : `<button type="button" class="crumb-chip" onclick="crumbGo(${i})">${esc(c.label)}</button>`;
+    return (i ? '<span class="crumb-sep" aria-hidden="true">‹</span>' : "") + chip;
+  }).join("");
+  if (bar.dataset.sig !== html) { bar.innerHTML = html; bar.dataset.sig = html; }
+  bar.style.display = "flex";
+}
+window.crumbGo = (i) => { closeSettingsMenu(); const f = crumbActions[i]; if (f) f(); };
 {
   let backRaf = 0;
   const schedule = () => {
     cancelAnimationFrame(backRaf);
-    backRaf = requestAnimationFrame(updateBackBtn);
+    backRaf = requestAnimationFrame(() => { updateBackBtn(); updateCrumbs(); });
   };
+  window.refreshCrumbs = schedule;
   const host = document.querySelector(".app-content");
   if (host) new MutationObserver(schedule).observe(host, { subtree: true, attributes: true, attributeFilter: ["style"] });
   schedule();
+}
+// ===== زرار الرجوع بتاع الموبايل: يرجّع خطوة جوه البرنامج (نفس زرار → فوق) بدل ما يطلع من البرنامج كله =====
+// كل مستوى بتدخله جوه (الفصول ‹ الفصل ‹ التاب) بياخد خطوة في history المتصفح، بتتضاف وقت اللمس نفسه. زرار الرجوع بتاع الموبايل بيشيل خطوة
+// وبننفّذ بدلها رجوع البرنامج. مبنضيفش خطوات تاني بعد الرجوع. من الرئيسية بيطلع عادي.
+{
+  let pushed = 0, ignorePops = 0, histRaf = 0;
+  const shownEl = (el) => !!el && getComputedStyle(el).display !== "none";
+  const topModal = () => { const all = [...document.querySelectorAll(".modal-overlay")].filter((el) => el.id !== "bio-offer-modal" && shownEl(el)); return all.length ? all[all.length - 1] : null; };
+  const menuOpen = () => shownEl(document.getElementById("settings-dropdown"));
+  const rolesOpen = () => { const el = document.getElementById("tab-roles"); return !!el && el.style.display === "block"; };
+  // كام ضغطة رجوع محتاجها عشان أوصل للرئيسية من مكاني دلوقتي (بنفس ترتيب goBack)
+  function depthNow() {
+    let d = topModal() || menuOpen() ? 1 : 0;
+    if (rolesOpen()) return d + 1;
+    const shown = (id) => { const el = document.getElementById(id); return !!el && el.style.display === "block"; };
+    let lvl = navLevel();
+    const isMonitor = shown("tab-monitor"), isClassServ = shown("tab-classservants");
+    let first = true;
+    for (let i = 0; i < 6; i++) {
+      let parent = "";
+      if (lvl === "tab") parent = (currentRole === "admin" && first && isMonitor) || (hasSupHome() && first && isClassServ) ? "home" : "classHome";
+      else if (lvl === "classHome") {
+        if (currentRole === "admin") parent = "adminClasses";
+        else if (hasSupHome() && !needsClassPick()) parent = "home";
+        else if (needsClassPick()) parent = "picker";
+      } else if (lvl === "adminClasses") parent = "home";
+      else if (lvl === "picker" && hasSupHome()) parent = "home";
+      if (!parent) break;
+      d++; lvl = parent; first = false;
+    }
+    return d;
+  }
+  function syncHistory() {
+    let want = 0;
+    try { want = depthNow(); } catch (err) { want = 0; }
+    if (want > pushed) {
+      for (let k = pushed; k < want; k++) { try { history.pushState({ e3Back: k + 1 }, ""); } catch (err) {} }
+      pushed = want;
+    } else if (want < pushed) {
+      const n = pushed - want; pushed = want; ignorePops++;
+      try { history.go(-n); } catch (err) { ignorePops--; }
+    }
+  }
+  const scheduleHistory = () => { cancelAnimationFrame(histRaf); histRaf = requestAnimationFrame(syncHistory); };
+  window.addEventListener("popstate", () => {
+    if (ignorePops > 0) { ignorePops--; return; }
+    if (pushed <= 0) return;
+    pushed--;
+    const ov = topModal();
+    if (ov) ov.click();
+    else if (menuOpen()) closeSettingsMenu();
+    else if (rolesOpen()) closeRolesModal();
+    else goBack();
+    scheduleHistory();
+  });
+  const hit = (t) => t && (t.classList && t.classList.contains("modal-overlay") || t.id && (t.id.startsWith("tab-") || t.id === "settings-dropdown" || t.id === "app-screen"));
+  new MutationObserver((muts) => { for (const m of muts) { if (hit(m.target)) { scheduleHistory(); break; } } })
+    .observe(document.body, { subtree: true, attributes: true, attributeFilter: ["style"] });
+  new MutationObserver(scheduleHistory).observe(document.body, { childList: true });
+  scheduleHistory();
 }
 window.tabsHome = () => {
   if (currentRole === "admin" && currentClassTab && document.getElementById("tab-monitor").style.display !== "block") showClassHome();
@@ -8939,6 +9054,75 @@ if (IS_MOBILE) checkShowBanner();
   function scan(){document.querySelectorAll('input[type="password"]').forEach(addEye);}
   scan();
   new MutationObserver(scan).observe(document.body,{childList:true,subtree:true});
+})();
+</script>
+<div id="update-banner" role="status" style="display:none;position:fixed;inset-inline:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:2147482000;margin:0 auto;max-width:480px;align-items:center;gap:12px;padding:12px;background:var(--surface);border:1px solid var(--accent);border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.35);font-family:'Cairo',sans-serif;color:var(--text)">
+  <span style="flex:1;font-size:14px;font-weight:700">🆕 فيه تحديث جديد للتطبيق</span>
+  <button type="button" id="update-banner-go" style="background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;color:#fff;font-family:'Cairo',sans-serif;font-size:13px;font-weight:800;padding:8px 14px;cursor:pointer">تحديث الآن</button>
+  <button type="button" id="update-banner-x" aria-label="إخفاء" style="background:none;border:none;color:var(--text-dim);font-size:18px;width:32px;height:32px;cursor:pointer">✕</button>
+</div>
+<script>
+// ===== "فيه تحديث جديد" (زي STMina) — لحظي: بيفحص كل 15 ثانية وهو ظاهر، وفورًا لما ترجع للتطبيق أو النت يرجع =====
+// مفيش build هنا، فالبرنامج بيقارن index.html اللي شغّال بيه بنسخة السيرفر. الفحص العادي طلب HEAD صغير جدًا (بصمة الملف: ETag/Last-Modified)؛
+// ولو البصمة اتغيرت بيجيب الملف مرة واحدة ويتأكد إن المحتوى اتغير فعلًا قبل ما يظهر الشريط. أي طلب بينتهي بعد 8 ثواني (مبيعلقش).
+// مبيعملش reload لوحده (ممكن تكون بتسجل حضور)؛ "✕" بيخفيه للنسخة دي، و"تحديث الآن" بيحمّل النسخة الجديدة.
+(function () {
+  const bar = document.getElementById('update-banner');
+  if (!bar) return;
+  if (/[?&]_u=/.test(location.search)) { try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {} }
+  const POLL = 15000;
+  let baseHash = '', seenSig = '', dismissed = '', busy = false, last = 0, lastFull = 0, timer = 0;
+  async function req(method) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
+    try {
+      const res = await fetch(location.pathname + '?_vc=' + Date.now(), { method, cache: 'no-store', signal: ctl.signal });
+      if (!res.ok) throw new Error('bad');
+      return res;
+    } finally { clearTimeout(t); }
+  }
+  const sigOf = res => [res.headers.get('etag'), res.headers.get('last-modified'), res.headers.get('content-length')].join('|');
+  const hasSig = sig => sig.replace(/\|/g, '') !== '';
+  async function hashText(text) {
+    if (window.crypto && crypto.subtle) {
+      const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(text));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    let h = 0; for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0;
+    return text.length + ':' + h;
+  }
+  async function readFull() {
+    const res = await req('GET');
+    const sig = sigOf(res);
+    return { hash: await hashText(await res.text()), sig };
+  }
+  async function check(force) {
+    if (busy || (!force && Date.now() - last < 3000)) return;
+    busy = true; last = Date.now();
+    try {
+      if (!baseHash) { const f = await readFull(); baseHash = f.hash; seenSig = f.sig; lastFull = Date.now(); return; }   // أول فحص = النسخة اللي شغّالة دلوقتي
+      let changed = true;
+      if (hasSig(seenSig)) { changed = sigOf(await req('HEAD')) !== seenSig; }
+      else if (Date.now() - lastFull < 60000) { changed = false; }                                                  // السيرفر مش بيبعت بصمة: فحص كامل كل دقيقة
+      if (changed) {
+        const f = await readFull(); lastFull = Date.now(); seenSig = f.sig;
+        if (f.hash !== baseHash && f.hash !== dismissed) { bar.dataset.hash = f.hash; bar.style.display = 'flex'; }
+      }
+    } catch (e) { /* أوفلاين أو السيرفر مردّش: نحاول تاني بعد شوية */ }
+    finally { busy = false; }
+  }
+  function startPolling() { clearInterval(timer); timer = setInterval(() => { if (document.visibilityState === 'visible') check(true); }, POLL); }
+  document.getElementById('update-banner-go').onclick = async () => {
+    try { const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if (reg) reg.update(); } catch (e) {}
+    // رابط جديد بـ ?_u عشان الـ CDN بتاع GitHub Pages مايرجّعش نسخة قديمة من الكاش بتاعه (والرابط بيتنضّف أول ما الصفحة تفتح)
+    location.replace(location.pathname + '?_u=' + Date.now() + location.hash);
+  };
+  document.getElementById('update-banner-x').onclick = () => { dismissed = bar.dataset.hash || '__hidden__'; bar.style.display = 'none'; };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(true); });
+  window.addEventListener('online', () => check(true));
+  window.addEventListener('focus', () => check());
+  window.addEventListener('pageshow', e => { if (e.persisted) check(true); });
+  startPolling();
+  check(true);
 })();
 </script>
 </body>
