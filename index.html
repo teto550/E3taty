@@ -4378,6 +4378,7 @@ function renderStudentsList() {
   cont.innerHTML = list.map((s) => {
     const classBadge = classBadgeHTML(s.classSection);
     return `<div class="student-item">
+      ${studentAvatarHTML(s, "s-avatar")}
       <div class="s-info">
         <div class="s-name">${eh(s.name)}</div>
         <div class="s-sub" style="margin-top:3px">${classBadge}${s.birthDate ? ` <span style="margin-right:6px">${bdayLabel(s)}</span>` : ""}</div>
