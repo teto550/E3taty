@@ -641,6 +641,8 @@ body{background:var(--bg)}
           <input type="url" id="new-map" class="field-input" placeholder="الصق رابط جوجل ماب" dir="ltr" style="margin-bottom:0;flex:1;min-width:0">
           <button type="button" onclick="fillMapFromGPS('new')" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:Cairo,sans-serif;font-size:13px;font-weight:700;padding:0 12px;cursor:pointer;white-space:nowrap">📍 موقعي</button>
         </div>
+        <label class="field-label">اسم المدرسة <span style="font-weight:400">(اختياري)</span></label>
+        <input type="text" id="new-school" class="field-input" placeholder="اسم المدرسة" style="margin-bottom:14px">
         <label class="field-label">أب الاعتراف <span style="font-weight:400">(اختياري)</span></label>
         <input type="text" id="new-confessor" class="field-input" placeholder="اسم أب الاعتراف" style="margin-bottom:14px">
                 <label class="field-label">اسم الأم <span style="font-weight:400">(اختياري)</span></label>
@@ -1171,6 +1173,8 @@ body{background:var(--bg)}
         <input type="url" id="edit-map" class="field-input" placeholder="الصق رابط جوجل ماب" dir="ltr" style="margin-bottom:0;flex:1;min-width:0">
         <button type="button" onclick="fillMapFromGPS('edit')" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:Cairo,sans-serif;font-size:13px;font-weight:700;padding:0 12px;cursor:pointer;white-space:nowrap">📍 موقعي</button>
       </div>
+      <label class="field-label">اسم المدرسة <span style="font-weight:400">(اختياري)</span></label>
+      <input type="text" id="edit-school" class="field-input" placeholder="اسم المدرسة" style="margin-bottom:14px">
       <label class="field-label">أب الاعتراف <span style="font-weight:400">(اختياري)</span></label>
       <input type="text" id="edit-confessor" class="field-input" placeholder="اسم أب الاعتراف" style="margin-bottom:14px">
       <label class="field-label">اسم الأم <span style="font-weight:400">(اختياري)</span></label>
@@ -3628,6 +3632,7 @@ window.addStudent = async () => {
     addressMap,
     motherName: document.getElementById("new-mother-name").value.trim(),
     confessor: document.getElementById("new-confessor").value.trim(),
+    school: document.getElementById("new-school").value.trim(),
     birthDate: document.getElementById("new-birth").value || "",
     gender: "female",
     ...buildPhoneFields(father, mother, student, [], null),
@@ -3637,7 +3642,7 @@ window.addStudent = async () => {
   };
   await addDoc(collection(db, "students"), data);
   bumpStudentsRev();
-  ["new-name", "new-address", "new-map", "new-confessor", "new-mother-name", "new-birth", "new-phone-father", "new-phone-mother", "new-phone-student"].forEach((id) => {
+  ["new-name", "new-address", "new-map", "new-confessor", "new-school", "new-mother-name", "new-birth", "new-phone-father", "new-phone-mother", "new-phone-student"].forEach((id) => {
     document.getElementById(id).value = "";
   });
   showToast("تمت الإضافة ✓", "success");
@@ -3652,7 +3657,7 @@ const impEsc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&
 const IMP_MONTHS = { "يناير": 1, "فبراير": 2, "مارس": 3, "ابريل": 4, "مايو": 5, "يونيو": 6, "يوليو": 7, "اغسطس": 8, "سبتمبر": 9, "اكتوبر": 10, "نوفمبر": 11, "ديسمبر": 12 };
 function importPhones(v) {
   if (v == null || v === "") return { main: "", extra: [], bad: false };
-  let parts = (typeof v === "number" ? [String(Math.round(v))] : String(v).split(/[\/,،؛;\n]+/)).map(cleanPhone).filter(Boolean);
+  let parts = (typeof v === "number" ? [String(Math.round(v))] : String(v).split(/[\/,،؛;\n]+/)).map((x) => cleanPhone(String(x).replace(/[^\d٠-٩+\s\-().]/g, " "))).filter(Boolean);
   let bad = false;
   parts = parts.map((p) => {
     if (/^1\d{9}$/.test(p)) p = "0" + p;
@@ -3711,6 +3716,8 @@ function impMark(v) {
   const t = normalizeArabic(impDigits(v));
   return !!t && !IMP_NO.test(t);
 }
+const impMergeP = (a, b) => a.main ? { main: a.main, extra: [...a.extra, ...(b.main ? [b.main] : []), ...b.extra], bad: a.bad || b.bad } : { main: b.main, extra: [...a.extra, ...b.extra], bad: a.bad || b.bad };
+const impIsMom = v => /(ماما|الام|والده|mother)/.test(normalizeArabic(v));
 function impAnalyzeSheet(aoa) {
   const hi = aoa.findIndex((r, i) => i < 30 && (r || []).some((c) => IMP_NAME_RE.test(normalizeArabic(c))));
   if (hi < 0) return null;
@@ -3721,10 +3728,12 @@ function impAnalyzeSheet(aoa) {
     if (col.name == null && IMP_NAME_RE.test(h)) col.name = i;
     else if (/^(اسم الام|اسم الوالده)$/.test(h)) col.mName = i;
     else if (/^(رقم الام|تليفون الام|موبايل الام|رقم الوالده|تليفون الوالده)$/.test(h)) col.mPhone = i;
+    else if (/^((تليفون|رقم|موبايل) )?(الاب|ولي الامر) ?(او|و|\/|-) ?(الام|الوالده)$/.test(h)) col.parent = i;
     else if (/^(تليفون الاب|رقم الاب|موبايل الاب|تليفون ولي الامر|موبايل ولي الامر|رقم ولي الامر)$/.test(h)) col.father = i;
-    else if (/^(الموبايل|موبايل|رقم الموبايل|تليفون المخدوم|تليفون المخدومه|رقم المخدوم|رقم المخدومه|موبايل المخدوم|موبايل المخدومه|تليفون|رقم التليفون|الهاتف|رقم الهاتف)$/.test(h)) col.phone = i;
+    else if (/^(التليفون|التلفون|الموبايل|موبايل|رقم الموبايل|تليفون المخدوم|تليفون المخدومه|رقم المخدوم|رقم المخدومه|موبايل المخدوم|موبايل المخدومه|تليفون|رقم التليفون|الهاتف|رقم الهاتف)$/.test(h)) col.phone = i;
     else if (/^(ارقام اخري|ارقام اضافيه|تليفون اضافي)$/.test(h)) col.others = i;
     else if (/^(ملاحظات|العنوان|عنوان|السكن)$/.test(h)) col.notes = i;
+    else if (/^(المدرسه|مدرسه|اسم المدرسه|مدرسة المخدوم)$/.test(h)) col.school = i;
     else if (/^(الفصل|فصل|الصف|السنه)$/.test(h)) col.cls = i;
     else if (/^(اب الاعتراف|ابو الاعتراف|اب اعتراف|ابونا الاعتراف|الاب الروحي|كاهن الاعتراف|اب الاعتراف الروحي)$/.test(h)) col.confessor = i;
   });
@@ -3764,7 +3773,7 @@ function impAnalyzeSheet(aoa) {
       (lab === "verse" ? verseCols : attCols).push({ c, key: impWeekKey(dt.y, dt.m, dt.d) });
     } else last = null;
   }
-  const hasProfile = ["phone", "mPhone", "mName", "father", "others", "notes", "confessor", "cls"].some((k) => col[k] != null);
+  const hasProfile = ["phone", "mPhone", "mName", "father", "others", "notes", "confessor", "school", "parent", "cls"].some((k) => col[k] != null);
   const kind = attCols.length ? hasProfile ? "both" : "att" : verseCols.length && !hasProfile ? "verseonly" : "students";
   return { hi, col, attCols, verseCols, kind, shifted };
 }
@@ -3866,7 +3875,9 @@ window.handleImportFile = async (e) => {
         if (!name) continue;
         const key = normalizeArabic(name);
         const g = (k) => sh.col[k] == null ? null : r[sh.col[k]];
-        const sp = importPhones(g("phone")), mp = importPhones(g("mPhone")), fp = importPhones(g("father")), op = importPhones(g("others"));
+        const sp = importPhones(g("phone")), mp0 = importPhones(g("mPhone")), fp0 = importPhones(g("father")), op = importPhones(g("others"));
+        const pv = g("parent"), pp = importPhones(pv), pMom = impIsMom(pv);
+        const fp = pMom ? fp0 : impMergeP(fp0, pp), mp = pMom ? impMergeP(mp0, pp) : mp0;
         if (byKey.has(key)) fileDup++;
         if (sp.bad || mp.bad || fp.bad || op.bad) badPhones++;
         if (!sp.main && !mp.main && !fp.main) noPhone++;
@@ -3886,6 +3897,7 @@ window.handleImportFile = async (e) => {
           motherName: impNorm(g("mName")),
           notes: String(g("notes") == null ? "" : g("notes")).trim(),
           confessor: String(g("confessor") == null ? "" : g("confessor")).trim(),
+          school: String(g("school") == null ? "" : g("school")).trim(),
           cls: rc
         });
         n++;
@@ -3924,7 +3936,7 @@ window.handleImportFile = async (e) => {
           keyToId.set(key, id);
           attOnlyIds.add(id);
           attOnlyNames.push(name);
-          rows.push({ key, name, student: "", mother: "", father: "", others: [], motherName: "", notes: "", confessor: "", cls: "", ref, attOnly: true });
+          rows.push({ key, name, student: "", mother: "", father: "", others: [], motherName: "", notes: "", confessor: "", school: "", cls: "", ref, attOnly: true });
         }
         people++;
         hits.forEach((a) => {
@@ -4006,6 +4018,7 @@ window.confirmImport = async () => {
         if (r.notes) data.address = r.notes;
         if (r.motherName) data.motherName = r.motherName;
         if (r.confessor) data.confessor = r.confessor;
+        if (r.school) data.school = r.school;
         if (cls || r.cls) data.classSection = r.cls || cls;
         ops.push((b) => b.update(doc(db, "students", prev.id), data));
         updated++;
@@ -4016,6 +4029,7 @@ window.confirmImport = async () => {
           addressMap: "",
           motherName: r.motherName,
           confessor: r.confessor || "",
+          school: r.school || "",
           gender: "female",
           ...buildPhoneFields(r.father, r.mother, r.student, r.others, null),
           classSection: r.cls || cls,
@@ -5234,6 +5248,7 @@ window.openProfile = (id) => {
   const fields = [];
   if (s.address) fields.push({ icon: "📝", key: "ملاحظات", val: String(s.address).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>") });
   if (s.addressMap && /^https?:\/\//i.test(s.addressMap)) fields.push({ icon: "🗺️", key: "الموقع على الخريطة", link: s.addressMap });
+  if (s.school) fields.push({ icon: "🏫", key: "المدرسة", val: String(s.school).replace(/&/g, "&amp;").replace(/</g, "&lt;") });
   fields.push({ icon: "✝️", key: "أب الاعتراف", val: s.confessor ? String(s.confessor).replace(/&/g, "&amp;").replace(/</g, "&lt;") : "لا يوجد" });
   {
     const b = birthParts(s);
@@ -5442,12 +5457,13 @@ function buildAttSheet(expAtt) {
   return ws;
 }
 function buildStudentsSheet() {
-  const row1 = ["الاسم", "اسم الأم", "الفصل", "ملاحظات", "أب الاعتراف", "تليفون الأب", "تليفون الأم", "تليفون المخدوم", "أرقام أخرى"];
+  const row1 = ["الاسم", "اسم الأم", "الفصل", "ملاحظات", "المدرسة", "أب الاعتراف", "تليفون الأب", "تليفون الأم", "تليفون المخدوم", "أرقام أخرى"];
   const rows = [...exportTargetStudents()].sort((a, b) => a.name.localeCompare(b.name, "ar")).map((s) => [
     s.name || "",
     s.motherName || "",
     s.classSection ? classLabel(s.classSection) : "",
     s.address || "",
+    s.school || "",
     s.confessor || "",
     s.fatherPhone || "",
     s.motherPhone || "",
@@ -5455,7 +5471,7 @@ function buildStudentsSheet() {
     (hasRolePhones(s) ? s.otherPhones || [] : s.phones || []).filter(Boolean).join(" / ")
   ]);
   const ws = XLSX.utils.aoa_to_sheet([row1, ...rows]);
-  ws["!cols"] = [{ wch: 26 }, { wch: 22 }, { wch: 14 }, { wch: 26 }, { wch: 20 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 22 }];
+  ws["!cols"] = [{ wch: 26 }, { wch: 22 }, { wch: 14 }, { wch: 26 }, { wch: 22 }, { wch: 20 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 22 }];
   ws["!views"] = [{ rightToLeft: true }];
   const border = { top: { style: "thin", color: { rgb: "D9D9D9" } }, bottom: { style: "thin", color: { rgb: "D9D9D9" } }, left: { style: "thin", color: { rgb: "D9D9D9" } }, right: { style: "thin", color: { rgb: "D9D9D9" } } };
   const headStyle = { font: { bold: true, color: { rgb: "FFFFFF" } }, alignment: { horizontal: "center", vertical: "center" }, fill: { patternType: "solid", fgColor: { rgb: "4472C4" } }, border };
@@ -8375,6 +8391,7 @@ window.openEditModal = (id) => {
   document.getElementById("edit-map").value = s.addressMap || "";
   document.getElementById("edit-mother-name").value = s.motherName || "";
   document.getElementById("edit-confessor").value = s.confessor || "";
+  document.getElementById("edit-school").value = s.school || "";
   document.getElementById("edit-birth").value = s.birthDate || "";
   document.getElementById("edit-avatar").textContent = s.name.trim()[0] || "؟";
   document.getElementById("edit-sub").textContent = s.name;
@@ -8420,6 +8437,7 @@ window.saveEditStudent = async () => {
     addressMap,
     motherName: document.getElementById("edit-mother-name").value.trim(),
     confessor: document.getElementById("edit-confessor").value.trim(),
+    school: document.getElementById("edit-school").value.trim(),
     birthDate: document.getElementById("edit-birth").value || "",
     ...buildPhoneFields(father, mother, student, others, prev)
   };
