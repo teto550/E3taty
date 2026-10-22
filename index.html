@@ -1605,6 +1605,14 @@ html.light .class-badge.class-a,html.light .mon-role.sup{background:rgba(var(--a
     box.style.cssText = "margin-top:24px;max-width:340px;text-align:center;color:#e8eaf0;font:14px/1.9 Cairo,sans-serif;direction:rtl";
     var ua = (navigator.userAgent.match(/Chrome\/(\d+)/) || [])[1] || "?";
     box.innerHTML = '<div style="margin-bottom:10px">البرنامج واقف على التحميل 😕<br>لو مستمر، اضغط الزر ده يمسح الكاش ويعيد التحميل</div><button id="bw-fix" style="padding:10px 22px;border:0;border-radius:12px;background:#4f8ef7;color:#fff;font:700 15px Cairo,sans-serif">إصلاح وإعادة تحميل</button><div style="margin-top:12px;font-size:11px;opacity:.55;direction:ltr;word-break:break-all">Chrome/WebView v' + ua + (errs.length ? " | " + errs[0] : "") + (window.__bootErr ? " | " + window.__bootErr : "") + " | stage:" + (window.__stage || "module-not-started") + "</div>";
+    var inapp = /FBAN|FBAV|FB_IAB|Instagram|Messenger|WhatsApp|Line\/|Snapchat|TikTok|; wv\)/i.test(navigator.userAgent);
+    var hint = inapp ? "شكلك فاتحة اللينك من جوه تطبيق (واتساب/ماسنجر…). افتحيه من Chrome: اضغطي ⋮ ثم «فتح في المتصفح»." : !window.__stage ? "البرنامج مش قادر يحمّل ملفاته (فايربيز). اتأكدي من النت أو جرّبي شبكة تانية (واي فاي/داتا)، وافتحيه من Chrome." : "";
+    if (hint) {
+      var h = document.createElement("div");
+      h.style.cssText = "margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(243,156,18,.14);color:#f5c26b;font-size:13px";
+      h.textContent = hint;
+      box.insertBefore(h, box.firstChild);
+    }
     sp.appendChild(box);
     document.getElementById("bw-fix").onclick = function() {
       var done = function() {
