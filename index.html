@@ -5234,7 +5234,7 @@ window.openProfile = (id) => {
   const fields = [];
   if (s.address) fields.push({ icon: "📝", key: "ملاحظات", val: String(s.address).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>") });
   if (s.addressMap && /^https?:\/\//i.test(s.addressMap)) fields.push({ icon: "🗺️", key: "الموقع على الخريطة", link: s.addressMap });
-  if (s.confessor) fields.push({ icon: "✝️", key: "أب الاعتراف", val: String(s.confessor).replace(/&/g, "&amp;").replace(/</g, "&lt;") });
+  fields.push({ icon: "✝️", key: "أب الاعتراف", val: s.confessor ? String(s.confessor).replace(/&/g, "&amp;").replace(/</g, "&lt;") : "لا يوجد" });
   {
     const b = birthParts(s);
     if (b) {
