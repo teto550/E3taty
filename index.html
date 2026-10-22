@@ -641,6 +641,8 @@ body{background:var(--bg)}
           <input type="url" id="new-map" class="field-input" placeholder="الصق رابط جوجل ماب" dir="ltr" style="margin-bottom:0;flex:1;min-width:0">
           <button type="button" onclick="fillMapFromGPS('new')" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:Cairo,sans-serif;font-size:13px;font-weight:700;padding:0 12px;cursor:pointer;white-space:nowrap">📍 موقعي</button>
         </div>
+        <label class="field-label">أب الاعتراف <span style="font-weight:400">(اختياري)</span></label>
+        <input type="text" id="new-confessor" class="field-input" placeholder="اسم أب الاعتراف" style="margin-bottom:14px">
                 <label class="field-label">اسم الأم <span style="font-weight:400">(اختياري)</span></label>
         <input type="text" id="new-mother-name" class="field-input" placeholder="اسم الأم" style="margin-bottom:14px">
         <label class="field-label">🎂 تاريخ الميلاد <span style="font-weight:400">(اختياري)</span></label>
@@ -1169,6 +1171,8 @@ body{background:var(--bg)}
         <input type="url" id="edit-map" class="field-input" placeholder="الصق رابط جوجل ماب" dir="ltr" style="margin-bottom:0;flex:1;min-width:0">
         <button type="button" onclick="fillMapFromGPS('edit')" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:Cairo,sans-serif;font-size:13px;font-weight:700;padding:0 12px;cursor:pointer;white-space:nowrap">📍 موقعي</button>
       </div>
+      <label class="field-label">أب الاعتراف <span style="font-weight:400">(اختياري)</span></label>
+      <input type="text" id="edit-confessor" class="field-input" placeholder="اسم أب الاعتراف" style="margin-bottom:14px">
       <label class="field-label">اسم الأم <span style="font-weight:400">(اختياري)</span></label>
       <input type="text" id="edit-mother-name" class="field-input" placeholder="اسم الأم" style="margin-bottom:14px">
         <label class="field-label">🎂 تاريخ الميلاد <span style="font-weight:400">(اختياري)</span></label>
@@ -3623,6 +3627,7 @@ window.addStudent = async () => {
     address,
     addressMap,
     motherName: document.getElementById("new-mother-name").value.trim(),
+    confessor: document.getElementById("new-confessor").value.trim(),
     birthDate: document.getElementById("new-birth").value || "",
     gender: "female",
     ...buildPhoneFields(father, mother, student, [], null),
@@ -3632,7 +3637,7 @@ window.addStudent = async () => {
   };
   await addDoc(collection(db, "students"), data);
   bumpStudentsRev();
-  ["new-name", "new-address", "new-map", "new-mother-name", "new-birth", "new-phone-father", "new-phone-mother", "new-phone-student"].forEach((id) => {
+  ["new-name", "new-address", "new-map", "new-confessor", "new-mother-name", "new-birth", "new-phone-father", "new-phone-mother", "new-phone-student"].forEach((id) => {
     document.getElementById(id).value = "";
   });
   showToast("تمت الإضافة ✓", "success");
@@ -3721,6 +3726,7 @@ function impAnalyzeSheet(aoa) {
     else if (/^(ارقام اخري|ارقام اضافيه|تليفون اضافي)$/.test(h)) col.others = i;
     else if (/^(ملاحظات|العنوان|عنوان|السكن)$/.test(h)) col.notes = i;
     else if (/^(الفصل|فصل|الصف|السنه)$/.test(h)) col.cls = i;
+    else if (/^(اب الاعتراف|ابو الاعتراف|اب اعتراف|ابونا الاعتراف|الاب الروحي|كاهن الاعتراف|اب الاعتراف الروحي)$/.test(h)) col.confessor = i;
   });
   const nameOf = (r) => r && r[col.name] != null ? String(r[col.name]).trim() : "";
   const sub = aoa[hi + 1], useSub = !!sub && !nameOf(sub);
@@ -3758,7 +3764,7 @@ function impAnalyzeSheet(aoa) {
       (lab === "verse" ? verseCols : attCols).push({ c, key: impWeekKey(dt.y, dt.m, dt.d) });
     } else last = null;
   }
-  const hasProfile = ["phone", "mPhone", "mName", "father", "others", "notes", "cls"].some((k) => col[k] != null);
+  const hasProfile = ["phone", "mPhone", "mName", "father", "others", "notes", "confessor", "cls"].some((k) => col[k] != null);
   const kind = attCols.length ? hasProfile ? "both" : "att" : verseCols.length && !hasProfile ? "verseonly" : "students";
   return { hi, col, attCols, verseCols, kind, shifted };
 }
@@ -3879,6 +3885,7 @@ window.handleImportFile = async (e) => {
           others: [...sp.extra, ...mp.extra, ...fp.extra, ...op.main ? [op.main] : [], ...op.extra],
           motherName: impNorm(g("mName")),
           notes: String(g("notes") == null ? "" : g("notes")).trim(),
+          confessor: String(g("confessor") == null ? "" : g("confessor")).trim(),
           cls: rc
         });
         n++;
@@ -3917,7 +3924,7 @@ window.handleImportFile = async (e) => {
           keyToId.set(key, id);
           attOnlyIds.add(id);
           attOnlyNames.push(name);
-          rows.push({ key, name, student: "", mother: "", father: "", others: [], motherName: "", notes: "", cls: "", ref, attOnly: true });
+          rows.push({ key, name, student: "", mother: "", father: "", others: [], motherName: "", notes: "", confessor: "", cls: "", ref, attOnly: true });
         }
         people++;
         hits.forEach((a) => {
@@ -3998,6 +4005,7 @@ window.confirmImport = async () => {
         const data = { name: r.name, ...buildPhoneFields(father, mother, student, others, prev), updatedAt: serverTimestamp() };
         if (r.notes) data.address = r.notes;
         if (r.motherName) data.motherName = r.motherName;
+        if (r.confessor) data.confessor = r.confessor;
         if (cls || r.cls) data.classSection = r.cls || cls;
         ops.push((b) => b.update(doc(db, "students", prev.id), data));
         updated++;
@@ -4007,6 +4015,7 @@ window.confirmImport = async () => {
           address: r.notes,
           addressMap: "",
           motherName: r.motherName,
+          confessor: r.confessor || "",
           gender: "female",
           ...buildPhoneFields(r.father, r.mother, r.student, r.others, null),
           classSection: r.cls || cls,
@@ -5225,6 +5234,7 @@ window.openProfile = (id) => {
   const fields = [];
   if (s.address) fields.push({ icon: "📝", key: "ملاحظات", val: String(s.address).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>") });
   if (s.addressMap && /^https?:\/\//i.test(s.addressMap)) fields.push({ icon: "🗺️", key: "الموقع على الخريطة", link: s.addressMap });
+  if (s.confessor) fields.push({ icon: "✝️", key: "أب الاعتراف", val: String(s.confessor).replace(/&/g, "&amp;").replace(/</g, "&lt;") });
   {
     const b = birthParts(s);
     if (b) {
@@ -5432,19 +5442,20 @@ function buildAttSheet(expAtt) {
   return ws;
 }
 function buildStudentsSheet() {
-  const row1 = ["الاسم", "اسم الأم", "الفصل", "ملاحظات", "تليفون الأب", "تليفون الأم", "تليفون المخدوم", "أرقام أخرى"];
+  const row1 = ["الاسم", "اسم الأم", "الفصل", "ملاحظات", "أب الاعتراف", "تليفون الأب", "تليفون الأم", "تليفون المخدوم", "أرقام أخرى"];
   const rows = [...exportTargetStudents()].sort((a, b) => a.name.localeCompare(b.name, "ar")).map((s) => [
     s.name || "",
     s.motherName || "",
     s.classSection ? classLabel(s.classSection) : "",
     s.address || "",
+    s.confessor || "",
     s.fatherPhone || "",
     s.motherPhone || "",
     s.studentPhone || "",
     (hasRolePhones(s) ? s.otherPhones || [] : s.phones || []).filter(Boolean).join(" / ")
   ]);
   const ws = XLSX.utils.aoa_to_sheet([row1, ...rows]);
-  ws["!cols"] = [{ wch: 26 }, { wch: 22 }, { wch: 14 }, { wch: 26 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 22 }];
+  ws["!cols"] = [{ wch: 26 }, { wch: 22 }, { wch: 14 }, { wch: 26 }, { wch: 20 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 22 }];
   ws["!views"] = [{ rightToLeft: true }];
   const border = { top: { style: "thin", color: { rgb: "D9D9D9" } }, bottom: { style: "thin", color: { rgb: "D9D9D9" } }, left: { style: "thin", color: { rgb: "D9D9D9" } }, right: { style: "thin", color: { rgb: "D9D9D9" } } };
   const headStyle = { font: { bold: true, color: { rgb: "FFFFFF" } }, alignment: { horizontal: "center", vertical: "center" }, fill: { patternType: "solid", fgColor: { rgb: "4472C4" } }, border };
@@ -8363,6 +8374,7 @@ window.openEditModal = (id) => {
   document.getElementById("edit-address").value = s.address || "";
   document.getElementById("edit-map").value = s.addressMap || "";
   document.getElementById("edit-mother-name").value = s.motherName || "";
+  document.getElementById("edit-confessor").value = s.confessor || "";
   document.getElementById("edit-birth").value = s.birthDate || "";
   document.getElementById("edit-avatar").textContent = s.name.trim()[0] || "؟";
   document.getElementById("edit-sub").textContent = s.name;
@@ -8407,6 +8419,7 @@ window.saveEditStudent = async () => {
     address,
     addressMap,
     motherName: document.getElementById("edit-mother-name").value.trim(),
+    confessor: document.getElementById("edit-confessor").value.trim(),
     birthDate: document.getElementById("edit-birth").value || "",
     ...buildPhoneFields(father, mother, student, others, prev)
   };
