@@ -1352,7 +1352,7 @@ html.light .class-badge.class-a,html.light .mon-role.sup{background:rgba(var(--a
       <button class="modal-close" onclick="closeBadFlag()">✕</button>
     </div>
     <div style="padding:18px">
-      <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px;line-height:1.7">اختار البيانات اللي غلط عند المخدوم ده. هيظهر باللون الأحمر في الحضور، وأي خادم يدوس على اسمه يصلّح الخانات دي بس.</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px;line-height:1.7">اختاري البيانات اللي غلط عند المخدوم ده. هيظهر باللون الأحمر في الحضور، وأي خادمة تدوس على اسمه تصلّح الخانات دي بس.</div>
       <div id="bad-flag-list" style="display:flex;flex-direction:column;gap:8px"></div>
       <div style="display:flex;gap:10px;margin-top:16px">
         <button class="btn-primary" onclick="saveBadFlag()" style="flex:1">💾 حفظ</button>
@@ -1368,7 +1368,7 @@ html.light .class-badge.class-a,html.light .mon-role.sup{background:rgba(var(--a
     <div class="modal-header">
       <div style="flex:1;min-width:0">
         <div id="bad-fix-title" style="font-size:16px;font-weight:900"></div>
-        <div style="font-size:12px;color:#ff8a8a;margin-top:2px;font-weight:700">🚩 بيانات خاطئة — صلّح الخانات دي بس</div>
+        <div style="font-size:12px;color:#ff8a8a;margin-top:2px;font-weight:700">🚩 بيانات خاطئة — صلّحي الخانات دي بس</div>
       </div>
       <button class="modal-close" onclick="closeBadFix()">✕</button>
     </div>
@@ -1378,7 +1378,7 @@ html.light .class-badge.class-a,html.light .mon-role.sup{background:rgba(var(--a
         <button class="btn-primary" onclick="saveBadFix()" style="flex:1">💾 حفظ التصحيح</button>
         <button onclick="clearBadFix()" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);font-family:Cairo,sans-serif;font-size:14px;font-weight:700;padding:13px 14px;cursor:pointer">✓ سليمة</button>
       </div>
-      <button onclick="openBadFixProfile()" style="width:100%;margin-top:10px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);font-family:Cairo,sans-serif;font-size:13px;font-weight:700;padding:10px;cursor:pointer">👤 افتح الملف كامل</button>
+      <button onclick="openBadFixProfile()" style="width:100%;margin-top:10px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);font-family:Cairo,sans-serif;font-size:13px;font-weight:700;padding:10px;cursor:pointer">👤 افتحي الملف كامل</button>
     </div>
   </div>
 </div>
@@ -9240,7 +9240,7 @@ window.saveBadFix = async () => {
       if (v !== (s.motherName || "")) { up.motherName = v; fixed.add(k); }
     }
   }
-  if (!fixed.size) { showToast('مغيّرتش حاجة — لو البيانات سليمة دوس "✓ سليمة"', "info"); return; }
+  if (!fixed.size) { showToast('مغيّرتش حاجة — لو البيانات سليمة دوسي "✓ سليمة"', "info"); return; }
   if (["father", "mother", "student"].some((k) => fixed.has(k))) {
     const old = hasRolePhones(s) ? (s.otherPhones || []) : (s.phones || []);
     const others = old.filter((o) => o && o !== father && o !== mother && o !== student);
