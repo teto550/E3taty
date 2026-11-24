@@ -605,7 +605,7 @@ html.light .class-badge.class-a,html.light .mon-role.sup{background:rgba(var(--a
   <div class="auth-card">
     <div class="tabs">
       <button class="tab active" id="auth-tab-login" onclick="switchAuthTab('login')">دخول</button>
-      <button class="tab" id="auth-tab-register" onclick="switchAuthTab('register')">تسجيل خادمة جديد</button>
+      <button class="tab" id="auth-tab-register" onclick="switchAuthTab('register')">تسجيل خادمة جديدة</button>
     </div>
     <div id="auth-login-form">
       <label class="field-label">البريد الإلكتروني</label>
@@ -2695,7 +2695,6 @@ function onClassesUpdated() {
   renderClassChips();
   renderRegClassOptions();
   if (currentRole === "admin") {
-    renderClassesAdminList();
     if (((_c = document.getElementById("tab-admin-classes")) == null ? void 0 : _c.style.display) === "block") renderAdminClassCards();
     if (((_d = document.getElementById("tab-monitor")) == null ? void 0 : _d.style.display) === "block") {
       renderMonitorClassChips();
@@ -2748,20 +2747,6 @@ function renderClassChips() {
 function renderRegClassOptions() {
   const sel = document.getElementById("reg-class");
   if (sel && allClasses.length) sel.innerHTML = classSelectOptionsHTML(false);
-}
-function renderClassesAdminList() {
-  const cont = document.getElementById("classes-admin-list");
-  if (!cont) return;
-  if (!allClasses.length) {
-    cont.innerHTML = `<div class="empty-state" style="padding:10px">لا يوجد فصول بعد</div>`;
-    return;
-  }
-  cont.innerHTML = allClasses.map((c) => `
-    <div class="tpl-chip">
-      <span class="tpl-chip-name">${c.emoji || "📘"} ${c.name}</span>
-      <button class="tpl-chip-del" onclick="editClassPrompt('${c.id}')" title="تعديل" style="margin-left:4px">✏️</button>
-      <button class="tpl-chip-del" onclick="deleteClass('${c.id}','${(c.name || "").replace(/'/g, "\\'")}')" title="حذف">✕</button>
-    </div>`).join("");
 }
 window.addClassPrompt = async () => {
   const name = (prompt("اسم الفصل الجديد؟ (مثلاً: فصل ج)") || "").trim();
@@ -3366,8 +3351,8 @@ window.doRegister = async () => {
   const name = document.getElementById("reg-name-select").value.trim();
   const email = document.getElementById("reg-email").value.trim();
   const pass = document.getElementById("reg-pass").value;
-  const phone = document.getElementById("reg-phone").value.trim();
-  const address = document.getElementById("reg-address").value.trim();
+  const phone = document.getElementById("reg-phone").value.trim().replace(/[<>]/g, "");
+  const address = document.getElementById("reg-address").value.trim().replace(/[<>]/g, "");
   err.style.display = "none";
   if (!regClass) {
     err.textContent = "اختار فصلك الأول";
@@ -3675,19 +3660,24 @@ function usageTick() {
   const n = Date.now(), d = n - usageVisStart; usageVisStart = n;
   if (d > 0 && d <= 5 * 60 * 1000) usageAcc += d; // فرق أكبر من 5 دقايق = الجهاز كان نايم، مش بيتحسب
 }
+let usageFlushing = false;
 async function usageFlush() {
+  if (usageFlushing) return;
+  usageFlushing = true;
   try {
     usageTick();
     if (!currentUid) return;
     const sec = Math.round(usageAcc / 1000), a = usageActs, o = usageOpens;
     if (!sec && !a && !o) return;
-    usageAcc -= sec * 1000; usageActs = 0; usageOpens = 0;
     const day = usageDay();
     await _setDoc(doc(db, 'usage', currentUid + '_' + day), {
       uid: currentUid, name: currentName || '', day,
       seconds: increment(sec), acts: increment(a), opens: increment(o), last: serverTimestamp()
     }, { merge: true });
+    // بنطرح اللي اتحفظ بس بعد ما الحفظ ينجح — لو النت فصل الوقت بيفضل متجمّع ويتبعت في المرة الجاية
+    usageAcc -= sec * 1000; usageActs -= a; usageOpens -= o;
   } catch (e) { /* القياس مش مهم لدرجة يوقف التطبيق */ }
+  finally { usageFlushing = false; }
 }
 function startUsage() {
   try {
@@ -9010,7 +9000,7 @@ function renderRoleMembersChips() {
   const escTxt = (t) => String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
   const registeredChips = editingRoleMemberIds.map((id) => {
     const s = cachedServants.find((x) => x.id === id);
-    return `<span class="filter-chip active" style="display:flex;align-items:center;gap:6px">${s ? s.name || "؟" : "؟"}
+    return `<span class="filter-chip active" style="display:flex;align-items:center;gap:6px">${escTxt(s ? s.name || "؟" : "؟")}
       <span onclick="removeRoleMember('${id}')" style="cursor:pointer;font-weight:900">✕</span></span>`;
   });
   const pendingChips = editingRolePendingNames.slice().sort((a, b) => a.localeCompare(b, "ar")).map((n) => `<span class="filter-chip active" style="display:flex;align-items:center;gap:6px;opacity:.8">⏳ ${escTxt(n)}
